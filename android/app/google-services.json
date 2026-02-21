@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "221686128201",
+    "project_id": "crm-solucionesti",
+    "storage_bucket": "crm-solucionesti.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:221686128201:android:9369ce53a213e6637f6998",
+        "android_client_info": {
+          "package_name": "com.example.crm_solucionesti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBuhU9N5WqIcOSK_qDE6NtwR9H5Hzt2pg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
