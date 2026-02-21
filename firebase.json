@@ -1,1 +1,39 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"crm-solucionesti","appId":"1:221686128201:android:9369ce53a213e6637f6998","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"crm-solucionesti","configurations":{"android":"1:221686128201:android:9369ce53a213e6637f6998","web":"1:221686128201:web:ec5e1c1040d8263a7f6998"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "crm-solucionesti",
+          "appId": "1:221686128201:android:9369ce53a213e6637f6998",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "crm-solucionesti",
+          "configurations": {
+            "android": "1:221686128201:android:9369ce53a213e6637f6998",
+            "web": "1:221686128201:web:ec5e1c1040d8263a7f6998"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}
