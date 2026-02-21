@@ -1,5 +1,9 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:convert';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../core/role.dart';
 
@@ -20,6 +24,14 @@ class _CreateUserPageState extends State<CreateUserPage> {
   String? _result;
   String? _error;
 
+  static const String _region = 'us-central1';
+  static const String _projectId = 'crm-solucionesti';
+  static const String _functionName = 'createUserWithRoleHttp';
+
+  Uri get _endpoint => Uri.parse(
+    'https://$_region-$_projectId.cloudfunctions.net/$_functionName',
+  );
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -36,28 +48,64 @@ class _CreateUserPageState extends State<CreateUserPage> {
 
     if (!_formKey.currentState!.validate()) return;
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _error = 'No autenticado. Inicia sesión de nuevo.');
+      return;
+    }
+
     setState(() => _loading = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'createUserWithRole',
-      );
-      final res = await callable.call({
-        'email': _emailCtrl.text.trim(),
-        'password': _passwordCtrl.text,
-        'role': _role.claim,
-      });
+      final idToken = await user.getIdToken(true);
 
-      final data = Map<String, dynamic>.from(res.data as Map);
-      setState(() {
-        _result =
-            'Usuario creado ✅\nUID: ${data['uid']}\nEmail: ${data['email']}\nRol: ${data['role']}';
-      });
-    } on FirebaseFunctionsException catch (e) {
-      setState(() => _error = 'Error: ${e.message ?? e.code}');
-    } catch (_) {
-      setState(() => _error = 'Error inesperado creando usuario.');
+      final email = _emailCtrl.text.trim().toLowerCase();
+      final password = _passwordCtrl.text;
+      final roleClaim = _role.claim;
+
+      if (kDebugMode) {
+        debugPrint('POST -> $_endpoint');
+        debugPrint('ADMIN UID: ${user.uid}');
+      }
+
+      final resp = await http.post(
+        _endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'role': roleClaim,
+        }),
+      );
+
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        setState(() {
+          _result =
+              'Usuario creado ✅\nUID: ${data['uid']}\nEmail: ${data['email']}\nRol: ${data['role']}';
+        });
+        return;
+      }
+
+      // Intentar parsear error JSON
+      try {
+        final decoded = jsonDecode(resp.body) as Map<String, dynamic>;
+        final err = decoded['error'] as Map<String, dynamic>?;
+        if (err != null) {
+          setState(
+            () => _error = 'Error (${err['status']}): ${err['message']}',
+          );
+          return;
+        }
+      } catch (_) {}
+
+      setState(() => _error = 'HTTP ${resp.statusCode}: ${resp.body}');
+    } catch (e) {
+      setState(() => _error = 'Error: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

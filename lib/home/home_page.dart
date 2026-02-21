@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/role.dart';
 import '../core/role_access.dart';
 import '../admin/create_user_page.dart';
+import '../operatividad/pages/operatividad_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -127,13 +128,14 @@ class _HomePageState extends State<HomePage> {
                             title: m.title,
                             icon: _iconForModule(m),
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Abrir módulo: ${m.title} (pendiente)',
+                              if (m == AppModule.operatividad) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const OperatividadPage(),
                                   ),
-                                ),
-                              );
+                                );
+                                return;
+                              }
                             },
                           );
                         },

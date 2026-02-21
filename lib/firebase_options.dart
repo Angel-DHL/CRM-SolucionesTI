@@ -66,4 +66,5 @@ class DefaultFirebaseOptions {
     projectId: 'crm-solucionesti',
     storageBucket: 'crm-solucionesti.firebasestorage.app',
   );
+
 }
