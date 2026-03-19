@@ -5,6 +5,8 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
+import 'package:crm_solucionesti/operatividad/services/notification_service.dart';
+import 'package:crm_solucionesti/operatividad/widgets/sla_indicator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -22,6 +24,9 @@ import '../models/oper_activity.dart';
 import '../models/oper_evidence.dart';
 import '../models/oper_comment.dart';
 import '../widgets/evidence_viewer_dialog.dart';
+import '../services/activity_log_service.dart';
+import '../widgets/activity_timeline.dart';
+import '../widgets/dependencies_section.dart';
 
 class ActivityDetailPage extends StatefulWidget {
   final String activityId;
@@ -88,74 +93,111 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
 
   Future<void> _setWorkStart() async {
     HapticFeedback.mediumImpact();
-    await _ref.update({
-      'workStartAt': FieldValue.serverTimestamp(),
-      'actualStartAt': FieldValue.serverTimestamp(),
-      'status': OperStatus.inProgress.value,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.play_circle_rounded, color: Colors.white),
-            const SizedBox(width: 8),
-            const Text('¡Trabajo iniciado!'),
-          ],
+    try {
+      await _ref.update({
+        'workStartAt': FieldValue.serverTimestamp(),
+        'actualStartAt': FieldValue.serverTimestamp(),
+        'status': OperStatus.inProgress.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // ✅ Registrar en bitácora
+      await ActivityLogService.logWorkStarted(activityId: widget.activityId);
+      await ActivityLogService.logStatusChange(
+        activityId: widget.activityId,
+        previousStatus: OperStatus.planned,
+        newStatus: OperStatus.inProgress,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.play_circle_rounded, color: Colors.white),
+              const SizedBox(width: 8),
+              const Text('¡Trabajo iniciado!'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
         ),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('Error al iniciar trabajo: $e');
+    }
   }
 
   Future<void> _setWorkEnd() async {
     HapticFeedback.heavyImpact();
 
-    await _ref.update({
-      'workEndAt': FieldValue.serverTimestamp(),
-      'actualEndAt': FieldValue.serverTimestamp(),
-      'status': OperStatus.done.value,
-      'progress': 100,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _ref.update({
+        'workEndAt': FieldValue.serverTimestamp(),
+        'actualEndAt': FieldValue.serverTimestamp(),
+        'status': OperStatus.done.value,
+        'progress': 100,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    // Animación de completado
-    _confettiController.play();
-    _completionAnimController.forward(from: 0);
+      // ✅ Registrar en bitácora
+      await ActivityLogService.logWorkEnded(activityId: widget.activityId);
+      await ActivityLogService.logStatusChange(
+        activityId: widget.activityId,
+        previousStatus: OperStatus.inProgress,
+        newStatus: OperStatus.done,
+      );
 
-    if (!mounted) return;
-    _showCompletionDialog();
+      if (!mounted) return;
+      _confettiController.play();
+      _completionAnimController.forward(from: 0);
+      _showCompletionDialog();
+    } catch (e) {
+      debugPrint('Error al finalizar trabajo: $e');
+    }
   }
 
-  void _showCompletionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) =>
-          _CompletionCelebrationDialog(onDismiss: () => Navigator.pop(context)),
+  Future<void> _updateStatus(OperStatus newStatus) async {
+    // Guardar estado anterior antes de actualizar
+    final snapshot = await _ref.get();
+    final previousStatus = OperStatusX.from(snapshot.data()?['status']);
+
+    await _ref.update({
+      'status': newStatus.value,
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (newStatus == OperStatus.done) 'progress': 100,
+    });
+
+    // ✅ Registrar en bitácora
+    await ActivityLogService.logStatusChange(
+      activityId: widget.activityId,
+      previousStatus: previousStatus,
+      newStatus: newStatus,
     );
-  }
 
-  Future<void> _updateStatus(OperStatus status) async {
-    await _ref.update({
-      'status': status.value,
-      'updatedAt': FieldValue.serverTimestamp(),
-      if (status == OperStatus.done) 'progress': 100,
-    });
-
-    if (status == OperStatus.done) {
+    if (newStatus == OperStatus.done) {
       _confettiController.play();
     }
   }
 
   Future<void> _updateProgress(int value) async {
+    final snapshot = await _ref.get();
+    final previousProgress = (snapshot.data()?['progress'] ?? 0) as int;
+
     await _ref.update({
       'progress': value.clamp(0, 100),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // ✅ Registrar solo si cambió significativamente (evitar spam)
+    if ((value - previousProgress).abs() >= 10) {
+      await ActivityLogService.logProgressChange(
+        activityId: widget.activityId,
+        previousProgress: previousProgress,
+        newProgress: value,
+      );
+    }
   }
 
   Future<void> _uploadEvidence(OperActivity activity) async {
@@ -213,6 +255,12 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
           'uploadedByEmail': email,
           'uploadedAt': FieldValue.serverTimestamp(),
         });
+
+        // ✅ Registrar en bitácora
+        await ActivityLogService.logEvidenceUploaded(
+          activityId: activity.id,
+          fileName: file.name,
+        );
       }
 
       await _ref.update({'updatedAt': FieldValue.serverTimestamp()});
@@ -243,6 +291,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
 
+    if (!mounted) return;
     setState(() => _sendingComment = true);
 
     try {
@@ -254,8 +303,21 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // ✅ Obtener la actividad actual para notificar
+      final activitySnap = await _ref.get();
+      if (activitySnap.exists) {
+        final activity = OperActivity.fromDoc(activitySnap);
+        await NotificationService.notifyCommentAdded(
+          activity: activity,
+          commentText: text.length > 50 ? '${text.substring(0, 50)}...' : text,
+        );
+      }
+
       _commentController.clear();
       await _ref.update({'updatedAt': FieldValue.serverTimestamp()});
+
+      // ✅ Registrar en bitácora
+      await ActivityLogService.logCommentAdded(activityId: widget.activityId);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -436,10 +498,21 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
               children: [
                 _ActivityHeader(activity: activity),
                 const SizedBox(height: AppDimensions.xl),
+                if (activity.dependencies.isNotEmpty) ...[
+                  const SizedBox(height: AppDimensions.xl),
+                  DependenciesSection(
+                    activity: activity,
+                    onActivityTap: _navigateToDetail,
+                  ),
+                ],
                 _ProgressSection(
                   activity: activity,
                   onProgressChanged: _updateProgress,
                 ),
+                if (activity.hasSla) ...[
+                  SlaIndicator(activity: activity),
+                  const SizedBox(height: AppDimensions.xl),
+                ],
                 const SizedBox(height: AppDimensions.xl),
                 _TimeTrackingSection(
                   activity: activity,
@@ -463,6 +536,9 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
                   onSendComment: _sendComment,
                   sending: _sendingComment,
                 ),
+                // En _buildDesktopLayout, después de _CommentsSection:
+                const SizedBox(height: AppDimensions.xl),
+                ActivityTimeline(activityId: activity.id),
               ],
             ),
           ),
@@ -499,15 +575,25 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
     );
   }
 
+  void _navigateToDetail(OperActivity dep) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ActivityDetailPage(activityId: dep.id)),
+    );
+  }
+
   Widget _buildMobileLayout(OperActivity activity) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           // Header card
           Container(
             margin: const EdgeInsets.all(AppDimensions.md),
             child: _ActivityHeader(activity: activity, compact: true),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md),
+            child: SlaIndicator(activity: activity),
           ),
 
           // Tabs
@@ -518,6 +604,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
                 Tab(text: 'Detalles'),
                 Tab(text: 'Evidencias'),
                 Tab(text: 'Comentarios'),
+                Tab(text: 'Bitácora'),
               ],
               labelColor: AppColors.primary,
               unselectedLabelColor: AppColors.textSecondary,
@@ -573,6 +660,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
                   sending: _sendingComment,
                   fullPage: true,
                 ),
+                ActivityTimeline(activityId: activity.id, fullPage: true),
               ],
             ),
           ),
@@ -719,6 +807,8 @@ class _ActivityDetailPageState extends State<ActivityDetailPage>
       if (mounted) Navigator.pop(context);
     }
   }
+
+  void _showCompletionDialog() {}
 }
 
 // ══════════════════════════════════════════════════════════════

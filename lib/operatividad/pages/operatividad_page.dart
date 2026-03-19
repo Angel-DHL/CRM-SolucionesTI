@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crm_solucionesti/operatividad/widgets/report_config_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -17,6 +18,8 @@ import '../widgets/operatividad_filters.dart';
 import 'activity_detail_page.dart';
 import 'admin_create_activity_page.dart';
 import '../../core/firebase_helper.dart';
+import '../widgets/notifications_panel.dart';
+import '../services/notification_service.dart';
 
 enum OperView { dashboard, kanban, calendar, gantt, list }
 
@@ -73,6 +76,23 @@ class _OperatividadPageState extends State<OperatividadPage>
       _role = UserRole.fromClaim(claimRole);
       _loadingRole = false;
     });
+  }
+
+  void _showReportDialog(BuildContext context) {
+    // Necesitas acceder a las actividades actuales
+    // Si ya tienes un stream, puedes usar las actividades del StreamBuilder
+    showDialog(
+      context: context,
+      builder: (ctx) => StreamBuilder(
+        stream: _buildQuery(_role ?? UserRole.soporteTecnico).snapshots(),
+        builder: (context, snapshot) {
+          final docs = snapshot.data?.docs ?? [];
+          final activities = docs.map(OperActivity.fromDoc).toList();
+
+          return ReportConfigDialog(activities: activities);
+        },
+      ),
+    );
   }
 
   Query<Map<String, dynamic>> _buildQuery(UserRole role) {
@@ -322,8 +342,31 @@ class _OperatividadPageState extends State<OperatividadPage>
       ),
       actions: [
         if (!isMobile) _buildViewSelector(),
+        // ✅ NUEVO: Badge de notificaciones
+        NotificationBadge(onTap: () => _showNotificationsPanel(context)),
         const SizedBox(width: AppDimensions.sm),
       ],
+    );
+  }
+
+  void _showNotificationsPanel(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black26,
+      builder: (context) => Align(
+        alignment: Alignment.topRight,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 60, right: AppDimensions.md),
+          child: Material(
+            color: Colors.transparent,
+            child: NotificationsPanel(
+              onNotificationTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -680,14 +723,12 @@ class _OperatividadPageState extends State<OperatividadPage>
 
               if (!isMobile)
                 IconButton(
-                  onPressed: () {
-                    // Exportar/Imprimir
-                  },
+                  onPressed: () => _showReportDialog(context),
                   icon: Icon(
-                    Icons.download_rounded,
+                    Icons.picture_as_pdf_rounded,
                     color: AppColors.textSecondary,
                   ),
-                  tooltip: 'Exportar',
+                  tooltip: 'Generar reporte PDF',
                 ),
             ],
           ),

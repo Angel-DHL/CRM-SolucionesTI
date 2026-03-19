@@ -1,7 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const cors = require("cors");
-const {getFirestore} = require("firebase-admin/firestore");
+const { getFirestore } = require("firebase-admin/firestore");
 
 admin.initializeApp();
 
@@ -23,7 +23,7 @@ exports.createUserWithRoleHttp = functions.https.onRequest((req, res) => {
     try {
       if (req.method !== "POST") {
         return res.status(405).json({
-          error: {message: "Method not allowed", status: "METHOD_NOT_ALLOWED"},
+          error: { message: "Method not allowed", status: "METHOD_NOT_ALLOWED" },
         });
       }
 
@@ -77,45 +77,45 @@ exports.createUserWithRoleHttp = functions.https.onRequest((req, res) => {
 
       if (!email || !email.includes("@")) {
         return res.status(400).json({
-          error: {message: "Email inválido", status: "INVALID_ARGUMENT"},
+          error: { message: "Email inválido", status: "INVALID_ARGUMENT" },
         });
       }
 
       if (!password || password.length < 6) {
         return res.status(400).json({
-          error: {message: "Password mínimo 6", status: "INVALID_ARGUMENT"},
+          error: { message: "Password mínimo 6", status: "INVALID_ARGUMENT" },
         });
       }
 
       if (!allowed.includes(role)) {
         return res.status(400).json({
-          error: {message: "Rol inválido", status: "INVALID_ARGUMENT"},
+          error: { message: "Rol inválido", status: "INVALID_ARGUMENT" },
         });
       }
 
       let userRecord;
       try {
-        userRecord = await admin.auth().createUser({email, password});
+        userRecord = await admin.auth().createUser({ email, password });
       } catch (e) {
         console.error("createUser failed:", e);
         return res.status(409).json({
-          error: {message: String(e.message || e), status: "ALREADY_EXISTS"},
+          error: { message: String(e.message || e), status: "ALREADY_EXISTS" },
         });
       }
 
-      await admin.auth().setCustomUserClaims(userRecord.uid, {role});
+      await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
       // ✅ AQUÍ está el cambio importante: usamos "db" (databaseId crm-solucionesti)
       await db.doc(`users/${userRecord.uid}`).set(
-          {
-            uid: userRecord.uid,
-            email,
-            role,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            createdBy: callerUid,
-            active: true,
-          },
-          {merge: true},
+        {
+          uid: userRecord.uid,
+          email,
+          role,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdBy: callerUid,
+          active: true,
+        },
+        { merge: true },
       );
 
       return res.status(200).json({
@@ -134,3 +134,107 @@ exports.createUserWithRoleHttp = functions.https.onRequest((req, res) => {
     }
   });
 });
+
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+
+admin.initializeApp();
+
+// ✅ Notificar cuando se acerca la fecha límite (ejecutar cada hora)
+exports.checkDueSoonActivities = functions.pubsub
+  .schedule('every 1 hours')
+  .onRun(async (context) => {
+    const now = admin.firestore.Timestamp.now();
+    const fourHoursFromNow = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() + 4 * 60 * 60 * 1000)
+    );
+
+    // Buscar actividades que vencen en las próximas 4 horas
+    const snapshot = await db
+      .collection('oper_activities')
+      .where('plannedEndAt', '>=', now)
+      .where('plannedEndAt', '<=', fourHoursFromNow)
+      .where('status', 'in', ['planned', 'in_progress'])
+      .get();
+
+    const batch = db.batch();
+
+    for (const doc of snapshot.docs) {
+      const activity = doc.data();
+
+      for (const uid of activity.assigneesUids) {
+        const notifRef = db.collection('notifications').doc();
+        batch.set(notifRef, {
+          type: 'activityDueSoon',
+          title: '⏰ Actividad por vencer',
+          body: `La actividad "${activity.title}" vence pronto`,
+          activityId: doc.id,
+          activityTitle: activity.title,
+          recipientUid: uid,
+          senderUid: 'system',
+          senderEmail: 'sistema@crm.com',
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    await batch.commit();
+    console.log(`Notificaciones enviadas para ${snapshot.docs.length} actividades`);
+  });
+
+// ✅ Verificar SLA breached (ejecutar cada 30 minutos)
+exports.checkSlaBreached = functions.pubsub
+  .schedule('every 30 minutes')
+  .onRun(async (context) => {
+    const now = admin.firestore.Timestamp.now();
+
+    const snapshot = await db
+      .collection('oper_activities')
+      .where('slaDeadline', '<=', now)
+      .where('slaBreached', '==', false)
+      .where('status', 'in', ['planned', 'in_progress'])
+      .get();
+
+    const batch = db.batch();
+
+    for (const doc of snapshot.docs) {
+      const activity = doc.data();
+
+      // Marcar SLA como incumplido
+      batch.update(doc.ref, {
+        slaBreached: true,
+        slaBreachedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Crear notificación
+      for (const uid of activity.assigneesUids) {
+        const notifRef = db.collection('notifications').doc();
+        batch.set(notifRef, {
+          type: 'slaBreached',
+          title: '🚨 SLA Incumplido',
+          body: `El SLA de "${activity.title}" ha sido incumplido`,
+          activityId: doc.id,
+          activityTitle: activity.title,
+          recipientUid: uid,
+          senderUid: 'system',
+          senderEmail: 'sistema@crm.com',
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Log
+      const logRef = doc.ref.collection('logs').doc();
+      batch.set(logRef, {
+        action: 'slaBreached',
+        description: `SLA de ${activity.slaHours}h incumplido`,
+        performedByUid: 'system',
+        performedByEmail: 'sistema@crm.com',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+    console.log(`SLA verificado: ${snapshot.docs.length} incumplidos`);
+  });

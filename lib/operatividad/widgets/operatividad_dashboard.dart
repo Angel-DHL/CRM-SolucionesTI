@@ -10,6 +10,18 @@ import '../../core/theme/responsive.dart';
 import '../../core/role.dart';
 import '../models/oper_activity.dart';
 
+import 'charts/collaborator_workload_chart.dart';
+import 'charts/compliance_gauge.dart';
+import 'charts/status_pie_chart.dart';
+import 'charts/time_comparison_chart.dart';
+import 'charts/weekly_trend_chart.dart';
+import 'report_config_dialog.dart';
+import 'collaborator_home_view.dart';
+import 'charts/collaborator_metrics_view.dart';
+import 'charts/monthly_comparison_chart.dart';
+import 'charts/workload_prediction_view.dart';
+import '../services/metrics_service.dart';
+
 class OperatividadDashboard extends StatefulWidget {
   final List<OperActivity> activities;
   final UserRole role;
@@ -95,9 +107,24 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
+  // ✅ AGREGAR ESTE MÉTODO a la clase _OperatividadDashboardState:
+  void _showReportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => ReportConfigDialog(activities: widget.activities),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
+
+    if (widget.role != UserRole.admin) {
+      return CollaboratorHomeView(
+        activities: widget.activities,
+        onActivityTap: widget.onActivityTap,
+      );
+    }
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -109,8 +136,8 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
           _buildKPIsSection(isMobile),
           SizedBox(height: isMobile ? AppDimensions.lg : AppDimensions.xl),
 
-          // Gráfico de progreso y estadísticas
-          _buildProgressSection(isMobile),
+          // ✅ NUEVA SECCIÓN: Analítica con gráficas
+          _buildAnalyticsSection(isMobile),
           SizedBox(height: isMobile ? AppDimensions.lg : AppDimensions.xl),
 
           // Actividades vencidas (si hay)
@@ -199,6 +226,124 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
             );
           },
         ),
+      ],
+    );
+  }
+
+  // ✅ AGREGAR ESTE NUEVO MÉTODO:
+  Widget _buildAnalyticsSection(bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título de sección
+        Row(
+          children: [
+            Icon(Icons.analytics_rounded, color: AppColors.primary, size: 24),
+            const SizedBox(width: AppDimensions.sm),
+            Expanded(
+              child: Text(
+                'Analítica operativa',
+                style: AppTextStyles.h2.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            // ✅ NUEVO: Botón de reporte
+            FilledButton.icon(
+              onPressed: () => _showReportDialog(context),
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+              label: Text(isMobile ? 'PDF' : 'Generar reporte'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? AppDimensions.md : AppDimensions.lg,
+                  vertical: AppDimensions.sm,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppDimensions.lg),
+
+        
+
+        // Fila 1: Pie chart + Cumplimiento
+        if (isMobile) ...[
+          StatusPieChart(activities: widget.activities),
+          const SizedBox(height: AppDimensions.md),
+          ComplianceGauge(activities: widget.activities),
+        ] else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: StatusPieChart(activities: widget.activities),
+              ),
+              const SizedBox(width: AppDimensions.lg),
+              Expanded(
+                flex: 2,
+                child: ComplianceGauge(activities: widget.activities),
+              ),
+            ],
+          ),
+
+        const SizedBox(height: AppDimensions.lg),
+
+        // Fila 2: Tendencia semanal
+        WeeklyTrendChart(activities: widget.activities),
+
+        const SizedBox(height: AppDimensions.lg),
+
+        // Fila 3: Tiempo + Colaboradores
+        if (isMobile) ...[
+          TimeComparisonChart(activities: widget.activities),
+          const SizedBox(height: AppDimensions.md),
+          CollaboratorWorkloadChart(activities: widget.activities),
+        ] else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TimeComparisonChart(activities: widget.activities),
+              ),
+              const SizedBox(width: AppDimensions.lg),
+              Expanded(
+                child: CollaboratorWorkloadChart(activities: widget.activities),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimensions.lg),
+
+// ✅ Comparativo mensual
+MonthlyComparisonChart(activities: widget.activities),
+
+const SizedBox(height: AppDimensions.lg),
+
+// ✅ Productividad por colaborador
+CollaboratorMetricsView(
+  activities: widget.activities,
+  previousPeriodActivities: _getPreviousPeriodActivities(),
+),
+
+const SizedBox(height: AppDimensions.lg),
+
+// ✅ Predicción de carga
+WorkloadPredictionView(activities: widget.activities),
+
+// Agregar el método helper:
+List<OperActivity> _getPreviousPeriodActivities() {
+  final now = DateTime.now();
+  final currentMonthStart = DateTime(now.year, now.month, 1);
+  final previousMonthStart = DateTime(now.year, now.month - 1, 1);
+
+  return widget.activities.where((a) {
+    return a.plannedStartAt.isAfter(previousMonthStart) &&
+        a.plannedStartAt.isBefore(currentMonthStart);
+  }).toList();
+}
       ],
     );
   }

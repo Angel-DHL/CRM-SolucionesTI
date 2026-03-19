@@ -1,6 +1,7 @@
 // lib/operatividad/pages/admin_create_activity_page.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crm_solucionesti/operatividad/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/responsive.dart';
 import '../models/oper_activity.dart';
+import '../services/activity_log_service.dart';
 
 class AdminCreateActivityPage extends StatefulWidget {
   final VoidCallback onCreated;
@@ -31,6 +33,7 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _estimatedHoursCtrl = TextEditingController();
+  final _slaHoursCtrl = TextEditingController();
 
   // State
   int _currentStep = 0;
@@ -66,6 +69,7 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
     _estimatedHoursCtrl.dispose();
     _tagController.dispose();
     _animController.dispose();
+    _slaHoursCtrl.dispose();
     super.dispose();
   }
 
@@ -217,6 +221,7 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
   Future<void> _create() async {
     FocusScope.of(context).unfocus();
     setState(() => _error = null);
+    final slaHours = double.tryParse(_slaHoursCtrl.text) ?? 0;
 
     if (!_formKey.currentState!.validate()) return;
 
@@ -248,12 +253,50 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
         priority: _priority,
         tags: _tags,
         estimatedHours: estimatedHours,
+        slaHours: slaHours,
       );
 
       await _db.collection('oper_activities').add(data);
 
+      // ✅ Notificar a los asignados
+      final createdActivity = OperActivity(
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        plannedStartAt: _plannedStartAt,
+        plannedEndAt: _plannedEndAt,
+        assigneesUids: assigneesUids,
+        assigneesEmails: assigneesEmails,
+        createdByUid: user.uid,
+        createdByEmail: user.email ?? '',
+        priority: _priority,
+        tags: _tags,
+        estimatedHours: estimatedHours,
+        slaHours: slaHours,
+        id: '',
+        status: OperStatus.planned,
+        progress: 0,
+        actualStartAt: null,
+        actualEndAt: null,
+        workStartAt: null,
+        workEndAt: null,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await NotificationService.notifyActivityAssigned(
+        activity: createdActivity,
+        assigneeUids: assigneesUids,
+      );
+
       HapticFeedback.mediumImpact();
       widget.onCreated();
+
+      final docRef = await _db.collection('oper_activities').add(data);
+      // ✅ Registrar en bitácora
+      await ActivityLogService.logCreated(
+        activityId: docRef.id,
+        title: _titleCtrl.text.trim(),
+      );
 
       if (mounted) {
         _resetForm();
@@ -272,6 +315,7 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
     _tagController.clear();
     _selectedUids.clear();
     _uidToEmail.clear();
+    _slaHoursCtrl.clear();
     _tags.clear();
     setState(() {
       _currentStep = 0;
@@ -517,28 +561,49 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: AppDimensions.lg),
         // Start date/time
         _FormSection(
-          title: 'Fecha y hora de inicio',
-          required: true,
-          child: Row(
+          title: 'SLA (Acuerdo de nivel de servicio)',
+          subtitle: 'Opcional - tiempo máximo para completar',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 3,
-                child: _DatePickerField(
-                  label: 'Fecha',
-                  date: _startDate,
-                  onTap: () => _pickDate(isStart: true),
+              TextFormField(
+                controller: _slaHoursCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Ej: 24 (0 = sin SLA)',
+                  prefixIcon: Icon(Icons.timer_rounded),
+                  suffixText: 'horas',
                 ),
               ),
-              const SizedBox(width: AppDimensions.md),
-              Expanded(
-                flex: 2,
-                child: _TimePickerField(
-                  label: 'Hora',
-                  time: _startTime,
-                  onTap: () => _pickTime(isStart: true),
-                ),
+              const SizedBox(height: AppDimensions.sm),
+              // Presets rápidos de SLA
+              Wrap(
+                spacing: AppDimensions.sm,
+                children: [
+                  _SlaPresetChip(
+                    label: '4h',
+                    onTap: () => _slaHoursCtrl.text = '4',
+                  ),
+                  _SlaPresetChip(
+                    label: '8h',
+                    onTap: () => _slaHoursCtrl.text = '8',
+                  ),
+                  _SlaPresetChip(
+                    label: '24h',
+                    onTap: () => _slaHoursCtrl.text = '24',
+                  ),
+                  _SlaPresetChip(
+                    label: '48h',
+                    onTap: () => _slaHoursCtrl.text = '48',
+                  ),
+                  _SlaPresetChip(
+                    label: '72h',
+                    onTap: () => _slaHoursCtrl.text = '72',
+                  ),
+                ],
               ),
             ],
           ),
@@ -931,6 +996,25 @@ class _StepIndicator extends StatelessWidget {
           isCurrent: isCurrent,
         );
       }),
+    );
+  }
+}
+
+class _SlaPresetChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _SlaPresetChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(label),
+      onPressed: onTap,
+      labelStyle: AppTextStyles.labelSmall.copyWith(color: AppColors.primary),
+      backgroundColor: AppColors.primarySurface,
+      side: BorderSide.none,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

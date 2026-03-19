@@ -31,6 +31,9 @@ extension OperStatusX on OperStatus {
   };
 }
 
+/// Niveles de SLA
+enum SlaLevel { ok, warning, critical, breached }
+
 class OperActivity {
   final String id;
   final String title;
@@ -42,21 +45,25 @@ class OperActivity {
   final List<String> assigneesEmails;
 
   final OperStatus status;
-  final int progress; // 0..100
+  final int progress;
 
   final DateTime? actualStartAt;
   final DateTime? actualEndAt;
 
-  // Registro de trabajo (inicio/fin de ejecución por el usuario)
   final DateTime? workStartAt;
   final DateTime? workEndAt;
 
-  // Nuevos campos
-  final String? priority; // 'low', 'medium', 'high'
+  final String? priority;
   final List<String> tags;
   final double estimatedHours;
   final double actualHours;
-  final List<String> dependencies; // IDs de actividades dependientes
+  final List<String> dependencies;
+
+  // ✅ NUEVOS CAMPOS SLA
+  final double slaHours; // Horas límite de SLA (0 = sin SLA)
+  final DateTime? slaDeadline; // Fecha/hora límite del SLA
+  final bool slaBreached; // Si ya se rompió el SLA
+  final DateTime? slaBreachedAt; // Cuándo se rompió
 
   final String createdByUid;
   final String createdByEmail;
@@ -83,31 +90,32 @@ class OperActivity {
     this.estimatedHours = 0,
     this.actualHours = 0,
     this.dependencies = const [],
+    this.slaHours = 0,
+    this.slaDeadline,
+    this.slaBreached = false,
+    this.slaBreachedAt,
     required this.createdByUid,
     required this.createdByEmail,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  /// Crea una instancia desde un documento de Firestore
+  // ══════════════════════════════════════════════════════════
+  // PARSEO DESDE FIRESTORE
+  // ══════════════════════════════════════════════════════════
+
   static OperActivity fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data()!;
 
-    // ✅ Función mejorada para parsear timestamps
     DateTime parseTimestamp(dynamic t) {
       if (t == null) return DateTime.now();
-      if (t is Timestamp) {
-        // Convertir a DateTime local
-        return t.toDate().toLocal();
-      }
+      if (t is Timestamp) return t.toDate().toLocal();
       return DateTime.now();
     }
 
     DateTime? parseTimestampNullable(dynamic t) {
       if (t == null) return null;
-      if (t is Timestamp) {
-        return t.toDate().toLocal();
-      }
+      if (t is Timestamp) return t.toDate().toLocal();
       return null;
     }
 
@@ -130,6 +138,10 @@ class OperActivity {
       estimatedHours: (d['estimatedHours'] ?? 0).toDouble(),
       actualHours: (d['actualHours'] ?? 0).toDouble(),
       dependencies: List<String>.from(d['dependencies'] ?? const []),
+      slaHours: (d['slaHours'] ?? 0).toDouble(),
+      slaDeadline: parseTimestampNullable(d['slaDeadline']),
+      slaBreached: d['slaBreached'] == true,
+      slaBreachedAt: parseTimestampNullable(d['slaBreachedAt']),
       createdByUid: (d['createdByUid'] ?? '').toString(),
       createdByEmail: (d['createdByEmail'] ?? '').toString(),
       createdAt: parseTimestamp(d['createdAt']),
@@ -137,7 +149,10 @@ class OperActivity {
     );
   }
 
-  /// Genera el mapa de datos para crear una nueva actividad
+  // ══════════════════════════════════════════════════════════
+  // CREAR NUEVA ACTIVIDAD
+  // ══════════════════════════════════════════════════════════
+
   static Map<String, dynamic> createMap({
     required String title,
     required String description,
@@ -151,7 +166,16 @@ class OperActivity {
     List<String> tags = const [],
     double estimatedHours = 0,
     List<String> dependencies = const [],
+    double slaHours = 0,
   }) {
+    // Calcular deadline del SLA
+    DateTime? slaDeadline;
+    if (slaHours > 0) {
+      slaDeadline = plannedStartAt.add(
+        Duration(minutes: (slaHours * 60).round()),
+      );
+    }
+
     return {
       'title': title,
       'description': description,
@@ -170,6 +194,12 @@ class OperActivity {
       'estimatedHours': estimatedHours,
       'actualHours': 0,
       'dependencies': dependencies,
+      'slaHours': slaHours,
+      'slaDeadline': slaDeadline != null
+          ? Timestamp.fromDate(slaDeadline)
+          : null,
+      'slaBreached': false,
+      'slaBreachedAt': null,
       'createdByUid': createdByUid,
       'createdByEmail': createdByEmail,
       'createdAt': FieldValue.serverTimestamp(),
@@ -177,7 +207,114 @@ class OperActivity {
     };
   }
 
-  /// Crea una copia con campos modificados
+  // ══════════════════════════════════════════════════════════
+  // PROPIEDADES CALCULADAS
+  // ══════════════════════════════════════════════════════════
+
+  /// Verifica si la actividad está vencida
+  bool get isOverdue {
+    final now = DateTime.now();
+    final isDatePassed = plannedEndAt.isBefore(now);
+    final isNotCompleted =
+        status != OperStatus.done && status != OperStatus.verified;
+    return isDatePassed && isNotCompleted;
+  }
+
+  /// Si tiene SLA configurado
+  bool get hasSla => slaHours > 0 && slaDeadline != null;
+
+  /// Nivel actual de SLA
+  SlaLevel get slaLevel {
+    if (!hasSla) return SlaLevel.ok;
+
+    final isCompleted =
+        status == OperStatus.done || status == OperStatus.verified;
+
+    // Si ya se completó
+    if (isCompleted) {
+      if (slaBreached) return SlaLevel.breached;
+      return SlaLevel.ok;
+    }
+
+    // Si está activa, verificar tiempo restante
+    final now = DateTime.now();
+    final deadline = slaDeadline!;
+
+    if (now.isAfter(deadline)) return SlaLevel.breached;
+
+    final remaining = deadline.difference(now);
+    final totalDuration = Duration(minutes: (slaHours * 60).round());
+    final percentRemaining = remaining.inMinutes / totalDuration.inMinutes;
+
+    if (percentRemaining <= 0.1) return SlaLevel.critical; // < 10%
+    if (percentRemaining <= 0.25) return SlaLevel.warning; // < 25%
+
+    return SlaLevel.ok;
+  }
+
+  /// Tiempo restante del SLA
+  Duration? get slaTimeRemaining {
+    if (!hasSla) return null;
+
+    final isCompleted =
+        status == OperStatus.done || status == OperStatus.verified;
+    if (isCompleted) return Duration.zero;
+
+    final now = DateTime.now();
+    final remaining = slaDeadline!.difference(now);
+    return remaining;
+  }
+
+  /// Texto formateado del tiempo restante del SLA
+  String get slaTimeRemainingText {
+    final remaining = slaTimeRemaining;
+    if (remaining == null) return '';
+
+    if (remaining.isNegative) {
+      final overdue = remaining.abs();
+      if (overdue.inDays > 0)
+        return 'Excedido ${overdue.inDays}d ${overdue.inHours % 24}h';
+      if (overdue.inHours > 0)
+        return 'Excedido ${overdue.inHours}h ${overdue.inMinutes % 60}m';
+      return 'Excedido ${overdue.inMinutes}m';
+    }
+
+    if (remaining.inDays > 0)
+      return '${remaining.inDays}d ${remaining.inHours % 24}h restantes';
+    if (remaining.inHours > 0)
+      return '${remaining.inHours}h ${remaining.inMinutes % 60}m restantes';
+    return '${remaining.inMinutes}m restantes';
+  }
+
+  /// Porcentaje de SLA consumido (0.0 a 1.0+)
+  double get slaConsumedPercentage {
+    if (!hasSla) return 0;
+
+    final isCompleted =
+        status == OperStatus.done || status == OperStatus.verified;
+
+    if (isCompleted && !slaBreached) return 0;
+
+    final totalMinutes = slaHours * 60;
+    final now = DateTime.now();
+    final elapsed = now.difference(plannedStartAt).inMinutes;
+
+    return (elapsed / totalMinutes).clamp(0.0, 2.0);
+  }
+
+  /// Duración planificada en horas
+  double get plannedDurationHours {
+    return plannedEndAt.difference(plannedStartAt).inMinutes / 60;
+  }
+
+  /// Duración real del trabajo (si existe)
+  double? get workDurationHours {
+    if (workStartAt == null) return null;
+    final end = workEndAt ?? DateTime.now();
+    return end.difference(workStartAt!).inMinutes / 60;
+  }
+
+  /// CopyWith
   OperActivity copyWith({
     String? title,
     String? description,
@@ -196,6 +333,10 @@ class OperActivity {
     double? estimatedHours,
     double? actualHours,
     List<String>? dependencies,
+    double? slaHours,
+    DateTime? slaDeadline,
+    bool? slaBreached,
+    DateTime? slaBreachedAt,
   }) {
     return OperActivity(
       id: id,
@@ -216,51 +357,14 @@ class OperActivity {
       estimatedHours: estimatedHours ?? this.estimatedHours,
       actualHours: actualHours ?? this.actualHours,
       dependencies: dependencies ?? this.dependencies,
+      slaHours: slaHours ?? this.slaHours,
+      slaDeadline: slaDeadline ?? this.slaDeadline,
+      slaBreached: slaBreached ?? this.slaBreached,
+      slaBreachedAt: slaBreachedAt ?? this.slaBreachedAt,
       createdByUid: createdByUid,
       createdByEmail: createdByEmail,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );
-  }
-
-  /// Verifica si la actividad está vencida
-  bool get isOverdue {
-    // Solo está vencida si:
-    // 1. La fecha de fin planificada ya pasó
-    // 2. El estado NO es 'done' ni 'verified'
-    final now = DateTime.now();
-    final endDate = DateTime(
-      plannedEndAt.year,
-      plannedEndAt.month,
-      plannedEndAt.day,
-      plannedEndAt.hour,
-      plannedEndAt.minute,
-    );
-
-    final isDatePassed = endDate.isBefore(now);
-    final isNotCompleted =
-        status != OperStatus.done && status != OperStatus.verified;
-
-    // Debug (puedes quitar después)
-    // debugPrint('📅 Actividad: $title');
-    // debugPrint('   Fin planificado: $endDate');
-    // debugPrint('   Ahora: $now');
-    // debugPrint('   ¿Fecha pasó?: $isDatePassed');
-    // debugPrint('   ¿No completada?: $isNotCompleted');
-    // debugPrint('   ¿Vencida?: ${isDatePassed && isNotCompleted}');
-
-    return isDatePassed && isNotCompleted;
-  }
-
-  /// Calcula la duración planificada en horas
-  double get plannedDurationHours {
-    return plannedEndAt.difference(plannedStartAt).inMinutes / 60;
-  }
-
-  /// Calcula la duración real del trabajo (si existe)
-  double? get workDurationHours {
-    if (workStartAt == null) return null;
-    final end = workEndAt ?? DateTime.now();
-    return end.difference(workStartAt!).inMinutes / 60;
   }
 }
