@@ -15,12 +15,11 @@ import 'charts/compliance_gauge.dart';
 import 'charts/status_pie_chart.dart';
 import 'charts/time_comparison_chart.dart';
 import 'charts/weekly_trend_chart.dart';
-import 'report_config_dialog.dart';
-import 'collaborator_home_view.dart';
 import 'charts/collaborator_metrics_view.dart';
 import 'charts/monthly_comparison_chart.dart';
 import 'charts/workload_prediction_view.dart';
-import '../services/metrics_service.dart';
+import 'report_config_dialog.dart';
+import 'collaborator_home_view.dart';
 
 class OperatividadDashboard extends StatefulWidget {
   final List<OperActivity> activities;
@@ -54,11 +53,15 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
 
   @override
   void dispose() {
+    _animController.stop();
     _animController.dispose();
     super.dispose();
   }
 
-  // Estadísticas calculadas
+  // ══════════════════════════════════════════════════════════
+  // ESTADÍSTICAS CALCULADAS
+  // ══════════════════════════════════════════════════════════
+
   int get _totalActivities => widget.activities.length;
 
   int get _completedActivities => widget.activities
@@ -107,7 +110,21 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
-  // ✅ AGREGAR ESTE MÉTODO a la clase _OperatividadDashboardState:
+  List<OperActivity> _getPreviousPeriodActivities() {
+    final now = DateTime.now();
+    final currentMonthStart = DateTime(now.year, now.month, 1);
+    final previousMonthStart = DateTime(now.year, now.month - 1, 1);
+
+    return widget.activities.where((a) {
+      return a.plannedStartAt.isAfter(previousMonthStart) &&
+          a.plannedStartAt.isBefore(currentMonthStart);
+    }).toList();
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // ACCIONES
+  // ══════════════════════════════════════════════════════════
+
   void _showReportDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -115,10 +132,15 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
     );
   }
 
+  // ══════════════════════════════════════════════════════════
+  // BUILD
+  // ══════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
 
+    // Si NO es admin, mostrar vista de colaborador
     if (widget.role != UserRole.admin) {
       return CollaboratorHomeView(
         activities: widget.activities,
@@ -126,6 +148,7 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
       );
     }
 
+    // Dashboard de admin
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.all(isMobile ? AppDimensions.md : AppDimensions.lg),
@@ -136,17 +159,17 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
           _buildKPIsSection(isMobile),
           SizedBox(height: isMobile ? AppDimensions.lg : AppDimensions.xl),
 
-          // ✅ NUEVA SECCIÓN: Analítica con gráficas
+          // Analítica con gráficas
           _buildAnalyticsSection(isMobile),
           SizedBox(height: isMobile ? AppDimensions.lg : AppDimensions.xl),
 
-          // Actividades vencidas (si hay)
+          // Actividades vencidas
           if (_overdueActivities.isNotEmpty) ...[
             _buildOverdueSection(isMobile),
             SizedBox(height: isMobile ? AppDimensions.lg : AppDimensions.xl),
           ],
 
-          // Layout de dos columnas en desktop
+          // Próximas y recientes
           if (isMobile) ...[
             _buildUpcomingSection(),
             const SizedBox(height: AppDimensions.lg),
@@ -164,6 +187,10 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════
+  // SECCIÓN: KPIs
+  // ══════════════════════════════════════════════════════════
 
   Widget _buildKPIsSection(bool isMobile) {
     final kpis = [
@@ -230,12 +257,15 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
     );
   }
 
-  // ✅ AGREGAR ESTE NUEVO MÉTODO:
+  // ══════════════════════════════════════════════════════════
+  // SECCIÓN: ANALÍTICA
+  // ══════════════════════════════════════════════════════════
+
   Widget _buildAnalyticsSection(bool isMobile) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Título de sección
+        // Header con botón de reporte
         Row(
           children: [
             Icon(Icons.analytics_rounded, color: AppColors.primary, size: 24),
@@ -249,7 +279,6 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
                 ),
               ),
             ),
-            // ✅ NUEVO: Botón de reporte
             FilledButton.icon(
               onPressed: () => _showReportDialog(context),
               icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
@@ -266,8 +295,6 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
           ],
         ),
         const SizedBox(height: AppDimensions.lg),
-
-        
 
         // Fila 1: Pie chart + Cumplimiento
         if (isMobile) ...[
@@ -297,7 +324,7 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
 
         const SizedBox(height: AppDimensions.lg),
 
-        // Fila 3: Tiempo + Colaboradores
+        // Fila 3: Tiempo estimado vs real + Carga por colaborador
         if (isMobile) ...[
           TimeComparisonChart(activities: widget.activities),
           const SizedBox(height: AppDimensions.md),
@@ -315,117 +342,47 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
               ),
             ],
           ),
-          const SizedBox(height: AppDimensions.lg),
 
-// ✅ Comparativo mensual
-MonthlyComparisonChart(activities: widget.activities),
+        const SizedBox(height: AppDimensions.lg),
 
-const SizedBox(height: AppDimensions.lg),
+        // Fila 4: Comparativo mensual
+        MonthlyComparisonChart(activities: widget.activities),
 
-// ✅ Productividad por colaborador
-CollaboratorMetricsView(
-  activities: widget.activities,
-  previousPeriodActivities: _getPreviousPeriodActivities(),
-),
+        const SizedBox(height: AppDimensions.lg),
 
-const SizedBox(height: AppDimensions.lg),
-
-// ✅ Predicción de carga
-WorkloadPredictionView(activities: widget.activities),
-
-// Agregar el método helper:
-List<OperActivity> _getPreviousPeriodActivities() {
-  final now = DateTime.now();
-  final currentMonthStart = DateTime(now.year, now.month, 1);
-  final previousMonthStart = DateTime(now.year, now.month - 1, 1);
-
-  return widget.activities.where((a) {
-    return a.plannedStartAt.isAfter(previousMonthStart) &&
-        a.plannedStartAt.isBefore(currentMonthStart);
-  }).toList();
-}
+        // Fila 5: Productividad + Predicción de carga
+        if (isMobile) ...[
+          CollaboratorMetricsView(
+            activities: widget.activities,
+            previousPeriodActivities: _getPreviousPeriodActivities(),
+          ),
+          const SizedBox(height: AppDimensions.md),
+          WorkloadPredictionView(activities: widget.activities),
+        ] else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: CollaboratorMetricsView(
+                  activities: widget.activities,
+                  previousPeriodActivities: _getPreviousPeriodActivities(),
+                ),
+              ),
+              const SizedBox(width: AppDimensions.lg),
+              Expanded(
+                flex: 2,
+                child: WorkloadPredictionView(activities: widget.activities),
+              ),
+            ],
+          ),
       ],
     );
   }
 
-  Widget _buildProgressSection(bool isMobile) {
-    final statusDistribution = {
-      OperStatus.planned: _plannedActivities,
-      OperStatus.inProgress: _inProgressActivities,
-      OperStatus.done: _completedActivities,
-      OperStatus.blocked: _blockedActivities,
-    };
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        side: BorderSide(color: AppColors.divider),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimensions.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Distribución por estado',
-                  style: AppTextStyles.h3.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimensions.md,
-                    vertical: AppDimensions.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primarySurface,
-                    borderRadius: BorderRadius.circular(
-                      AppDimensions.radiusFull,
-                    ),
-                  ),
-                  child: Text(
-                    '${_completionRate.toStringAsFixed(1)}% completado',
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppDimensions.lg),
-
-            // Barra de progreso segmentada
-            _SegmentedProgressBar(
-              segments: statusDistribution,
-              total: _totalActivities,
-              animation: _animController,
-            ),
-
-            const SizedBox(height: AppDimensions.lg),
-
-            // Leyenda
-            Wrap(
-              spacing: AppDimensions.lg,
-              runSpacing: AppDimensions.sm,
-              children: statusDistribution.entries.map((entry) {
-                return _LegendItem(
-                  status: entry.key,
-                  count: entry.value,
-                  total: _totalActivities,
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ══════════════════════════════════════════════════════════
+  // SECCIÓN: ACTIVIDADES VENCIDAS
+  // ══════════════════════════════════════════════════════════
 
   Widget _buildOverdueSection(bool isMobile) {
     return Card(
@@ -467,7 +424,7 @@ List<OperActivity> _getPreviousPeriodActivities() {
                         ),
                       ),
                       Text(
-                        '${_overdueActivities.length} actividades requieren atención inmediata',
+                        '${_overdueActivities.length} requieren atención inmediata',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.error.withOpacity(0.8),
                         ),
@@ -478,17 +435,15 @@ List<OperActivity> _getPreviousPeriodActivities() {
               ],
             ),
             const SizedBox(height: AppDimensions.md),
-            ...(_overdueActivities.take(3).map((activity) {
+            ..._overdueActivities.take(3).map((activity) {
               return _OverdueActivityItem(
                 activity: activity,
                 onTap: () => widget.onActivityTap(activity),
               );
-            })),
+            }),
             if (_overdueActivities.length > 3)
               TextButton(
-                onPressed: () {
-                  // Mostrar todas las vencidas
-                },
+                onPressed: () {},
                 child: Text('Ver todas (${_overdueActivities.length})'),
               ),
           ],
@@ -496,6 +451,10 @@ List<OperActivity> _getPreviousPeriodActivities() {
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════
+  // SECCIÓN: PRÓXIMAS ACTIVIDADES
+  // ══════════════════════════════════════════════════════════
 
   Widget _buildUpcomingSection() {
     return Card(
@@ -524,22 +483,26 @@ List<OperActivity> _getPreviousPeriodActivities() {
             ),
             const SizedBox(height: AppDimensions.md),
             if (_upcomingActivities.isEmpty)
-              _EmptyStateSmall(
+              const _EmptyStateSmall(
                 icon: Icons.event_available_rounded,
                 message: 'No hay actividades próximas',
               )
             else
-              ...(_upcomingActivities.take(5).map((activity) {
+              ..._upcomingActivities.take(5).map((activity) {
                 return _UpcomingActivityItem(
                   activity: activity,
                   onTap: () => widget.onActivityTap(activity),
                 );
-              })),
+              }),
           ],
         ),
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════
+  // SECCIÓN: ACTIVIDADES RECIENTES
+  // ══════════════════════════════════════════════════════════
 
   Widget _buildRecentActivitySection() {
     return Card(
@@ -568,17 +531,17 @@ List<OperActivity> _getPreviousPeriodActivities() {
             ),
             const SizedBox(height: AppDimensions.md),
             if (_myRecentActivities.isEmpty)
-              _EmptyStateSmall(
+              const _EmptyStateSmall(
                 icon: Icons.assignment_ind_rounded,
                 message: 'No tienes actividades asignadas',
               )
             else
-              ...(_myRecentActivities.take(5).map((activity) {
+              ..._myRecentActivities.take(5).map((activity) {
                 return _RecentActivityItem(
                   activity: activity,
                   onTap: () => widget.onActivityTap(activity),
                 );
-              })),
+              }),
           ],
         ),
       ),
@@ -587,7 +550,7 @@ List<OperActivity> _getPreviousPeriodActivities() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// WIDGETS: KPI Cards
+// WIDGETS AUXILIARES
 // ══════════════════════════════════════════════════════════════
 
 class _KPIData {
@@ -660,10 +623,13 @@ class _AnimatedKPICard extends StatelessWidget {
                   ),
                   child: Icon(data.icon, color: data.color, size: 20),
                 ),
-                Text(
-                  data.title,
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.textSecondary,
+                Flexible(
+                  child: Text(
+                    data.title,
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -682,6 +648,7 @@ class _AnimatedKPICard extends StatelessWidget {
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textHint,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -689,144 +656,6 @@ class _AnimatedKPICard extends StatelessWidget {
     );
   }
 }
-
-// ══════════════════════════════════════════════════════════════
-// WIDGETS: Progress Bar Segmentado
-// ══════════════════════════════════════════════════════════════
-
-class _SegmentedProgressBar extends StatelessWidget {
-  final Map<OperStatus, int> segments;
-  final int total;
-  final AnimationController animation;
-
-  const _SegmentedProgressBar({
-    required this.segments,
-    required this.total,
-    required this.animation,
-  });
-
-  Color _getStatusColor(OperStatus status) {
-    switch (status) {
-      case OperStatus.planned:
-        return AppColors.info;
-      case OperStatus.inProgress:
-        return AppColors.warning;
-      case OperStatus.done:
-        return AppColors.success;
-      case OperStatus.verified:
-        return AppColors.primary;
-      case OperStatus.blocked:
-        return AppColors.error;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (total == 0) {
-      return Container(
-        height: 12,
-        decoration: BoxDecoration(
-          color: AppColors.divider,
-          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-        ),
-      );
-    }
-
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-          child: Container(
-            height: 12,
-            color: AppColors.divider,
-            // ✅ CAMBIAR Row por LayoutBuilder para calcular el ancho disponible
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final availableWidth = constraints.maxWidth;
-
-                return Row(
-                  children: segments.entries.map((entry) {
-                    if (entry.value == 0) return const SizedBox.shrink();
-
-                    final percentage = entry.value / total;
-                    // ✅ Calcular el ancho basado en el espacio disponible real
-                    final segmentWidth =
-                        availableWidth * percentage * animation.value;
-
-                    return Container(
-                      width: segmentWidth,
-                      color: _getStatusColor(entry.key),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  final OperStatus status;
-  final int count;
-  final int total;
-
-  const _LegendItem({
-    required this.status,
-    required this.count,
-    required this.total,
-  });
-
-  Color _getStatusColor(OperStatus status) {
-    switch (status) {
-      case OperStatus.planned:
-        return AppColors.info;
-      case OperStatus.inProgress:
-        return AppColors.warning;
-      case OperStatus.done:
-        return AppColors.success;
-      case OperStatus.verified:
-        return AppColors.primary;
-      case OperStatus.blocked:
-        return AppColors.error;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final percentage = total > 0
-        ? (count / total * 100).toStringAsFixed(0)
-        : '0';
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: _getStatusColor(status),
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: AppDimensions.xs),
-        Text(
-          '${status.label} ($count - $percentage%)',
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// WIDGETS: Activity Items
-// ══════════════════════════════════════════════════════════════
 
 class _OverdueActivityItem extends StatelessWidget {
   final OperActivity activity;

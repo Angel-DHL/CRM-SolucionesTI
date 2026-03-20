@@ -20,85 +20,97 @@ class NotificationService {
   static bool _initialized = false;
 
   // ══════════════════════════════════════════════════════════
+  // COLECCIÓN (usando FirebaseHelper para la DB correcta)
+  // ══════════════════════════════════════════════════════════
+
+  static CollectionReference<Map<String, dynamic>> get _notificationsRef =>
+      FirebaseHelper.db.collection('notifications');
+
+  // ══════════════════════════════════════════════════════════
   // INICIALIZACIÓN
   // ══════════════════════════════════════════════════════════
 
-  /// Inicializar el servicio de notificaciones
   static Future<void> initialize() async {
     if (_initialized) return;
 
-    // Solicitar permisos
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    try {
+      // Solicitar permisos
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional) {
-      debugPrint('✅ Notificaciones autorizadas');
-    } else {
-      debugPrint('❌ Notificaciones no autorizadas');
-      return;
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        debugPrint('✅ Notificaciones autorizadas');
+      } else {
+        debugPrint('❌ Notificaciones no autorizadas');
+      }
+
+      // Configurar notificaciones locales (solo móvil)
+      if (!kIsWeb) {
+        const androidSettings = AndroidInitializationSettings(
+          '@mipmap/ic_launcher',
+        );
+        const iosSettings = DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
+
+        const initSettings = InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        );
+
+        await _localNotifications.initialize(
+          initSettings,
+          onDidReceiveNotificationResponse: _onNotificationTapped,
+        );
+
+        // Canal de notificaciones Android
+        const androidChannel = AndroidNotificationChannel(
+          'operatividad_channel',
+          'Operatividad',
+          description: 'Notificaciones del módulo de operatividad',
+          importance: Importance.high,
+        );
+
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.createNotificationChannel(androidChannel);
+      }
+
+      // Listener para mensajes en foreground
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+      // Guardar token FCM
+      await _saveToken();
+
+      // Listener para cambios de token
+      _messaging.onTokenRefresh.listen((token) => _saveToken(token: token));
+
+      _initialized = true;
+      debugPrint('✅ NotificationService inicializado');
+    } catch (e) {
+      debugPrint('⚠️ Error inicializando NotificationService: $e');
+      // No lanzar error para que la app siga funcionando
+      _initialized = true;
     }
-
-    // Configurar notificaciones locales
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await _localNotifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-
-    // Canal de notificaciones Android
-    const androidChannel = AndroidNotificationChannel(
-      'operatividad_channel',
-      'Operatividad',
-      description: 'Notificaciones del módulo de operatividad',
-      importance: Importance.high,
-    );
-
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(androidChannel);
-
-    // Listener para mensajes en foreground
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // Guardar token FCM
-    await _saveToken();
-
-    // Listener para cambios de token
-    _messaging.onTokenRefresh.listen((token) => _saveToken(token: token));
-
-    _initialized = true;
-    debugPrint('✅ NotificationService inicializado');
   }
 
-  /// Guardar el token FCM del dispositivo
   static Future<void> _saveToken({String? token}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    token ??= await _messaging.getToken();
-    if (token == null) return;
-
     try {
+      token ??= await _messaging.getToken();
+      if (token == null) return;
+
       await FirebaseHelper.users.doc(user.uid).set({
         'fcmTokens': FieldValue.arrayUnion([token]),
         'lastTokenUpdate': FieldValue.serverTimestamp(),
@@ -110,34 +122,32 @@ class NotificationService {
     }
   }
 
-  /// Manejar mensaje en foreground
   static void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint(
-      '📩 Mensaje recibido en foreground: ${message.notification?.title}',
-    );
+    debugPrint('📩 Mensaje en foreground: ${message.notification?.title}');
 
     final notification = message.notification;
     if (notification == null) return;
 
-    _showLocalNotification(
-      title: notification.title ?? 'Notificación',
-      body: notification.body ?? '',
-      payload: message.data['activityId'] ?? '',
-    );
+    if (!kIsWeb) {
+      _showLocalNotification(
+        title: notification.title ?? 'Notificación',
+        body: notification.body ?? '',
+        payload: message.data['activityId'] ?? '',
+      );
+    }
   }
 
-  /// Callback cuando se toca una notificación
   static void _onNotificationTapped(NotificationResponse response) {
     debugPrint('🔔 Notificación tocada: ${response.payload}');
-    // La navegación se manejará desde el widget que escucha
   }
 
-  /// Mostrar notificación local
   static Future<void> _showLocalNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
+    if (kIsWeb) return;
+
     const androidDetails = AndroidNotificationDetails(
       'operatividad_channel',
       'Operatividad',
@@ -168,14 +178,9 @@ class NotificationService {
   }
 
   // ══════════════════════════════════════════════════════════
-  // ENVIAR NOTIFICACIONES (in-app)
+  // ENVIAR NOTIFICACIONES
   // ══════════════════════════════════════════════════════════
 
-  /// Colección de notificaciones
-  static CollectionReference<Map<String, dynamic>> get _notificationsRef =>
-      FirebaseHelper.db.collection('notifications');
-
-  /// Enviar notificación de actividad asignada
   static Future<void> notifyActivityAssigned({
     required OperActivity activity,
     required List<String> assigneeUids,
@@ -184,24 +189,28 @@ class NotificationService {
     final senderEmail = FirebaseAuth.instance.currentUser?.email ?? '';
 
     for (final uid in assigneeUids) {
-      if (uid == senderUid) continue; // No notificar al que asigna
+      if (uid == senderUid) continue;
 
-      await _notificationsRef.add(
-        OperNotification.createMap(
-          type: NotificationType.activityAssigned,
-          title: 'Nueva actividad asignada',
-          body: 'Se te ha asignado la actividad "${activity.title}"',
-          activityId: activity.id,
-          activityTitle: activity.title,
-          recipientUid: uid,
-          senderUid: senderUid,
-          senderEmail: senderEmail,
-        ),
-      );
+      try {
+        await _notificationsRef.add(
+          OperNotification.createMap(
+            type: NotificationType.activityAssigned,
+            title: 'Nueva actividad asignada',
+            body: 'Se te ha asignado: "${activity.title}"',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            recipientUid: uid,
+            senderUid: senderUid,
+            senderEmail: senderEmail,
+          ),
+        );
+        debugPrint('✅ Notificación enviada a $uid');
+      } catch (e) {
+        debugPrint('Error enviando notificación a $uid: $e');
+      }
     }
   }
 
-  /// Enviar notificación de comentario
   static Future<void> notifyCommentAdded({
     required OperActivity activity,
     required String commentText,
@@ -213,22 +222,25 @@ class NotificationService {
     for (final uid in activity.assigneesUids) {
       if (uid == senderUid) continue;
 
-      await _notificationsRef.add(
-        OperNotification.createMap(
-          type: NotificationType.commentReceived,
-          title: 'Nuevo comentario',
-          body: '$senderName comentó en "${activity.title}": $commentText',
-          activityId: activity.id,
-          activityTitle: activity.title,
-          recipientUid: uid,
-          senderUid: senderUid,
-          senderEmail: senderEmail,
-        ),
-      );
+      try {
+        await _notificationsRef.add(
+          OperNotification.createMap(
+            type: NotificationType.commentReceived,
+            title: 'Nuevo comentario',
+            body: '$senderName comentó en "${activity.title}": $commentText',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            recipientUid: uid,
+            senderUid: senderUid,
+            senderEmail: senderEmail,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error enviando notificación de comentario: $e');
+      }
     }
   }
 
-  /// Enviar notificación de cambio de estado
   static Future<void> notifyStatusChanged({
     required OperActivity activity,
     required OperStatus newStatus,
@@ -240,59 +252,88 @@ class NotificationService {
     for (final uid in activity.assigneesUids) {
       if (uid == senderUid) continue;
 
-      await _notificationsRef.add(
-        OperNotification.createMap(
-          type: NotificationType.statusChanged,
-          title: 'Estado actualizado',
-          body: '$senderName cambió "${activity.title}" a ${newStatus.label}',
-          activityId: activity.id,
-          activityTitle: activity.title,
-          recipientUid: uid,
-          senderUid: senderUid,
-          senderEmail: senderEmail,
-        ),
-      );
+      try {
+        await _notificationsRef.add(
+          OperNotification.createMap(
+            type: NotificationType.statusChanged,
+            title: 'Estado actualizado',
+            body: '$senderName cambió "${activity.title}" a ${newStatus.label}',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            recipientUid: uid,
+            senderUid: senderUid,
+            senderEmail: senderEmail,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error enviando notificación de estado: $e');
+      }
     }
   }
 
-  /// Enviar notificación de SLA en riesgo
   static Future<void> notifySlaWarning({required OperActivity activity}) async {
     for (final uid in activity.assigneesUids) {
-      await _notificationsRef.add(
-        OperNotification.createMap(
-          type: NotificationType.slaWarning,
-          title: '⚠️ SLA en riesgo',
-          body:
-              'La actividad "${activity.title}" está próxima a incumplir el SLA',
-          activityId: activity.id,
-          activityTitle: activity.title,
-          recipientUid: uid,
-          senderUid: 'system',
-          senderEmail: 'sistema@crm.com',
-        ),
-      );
+      try {
+        await _notificationsRef.add(
+          OperNotification.createMap(
+            type: NotificationType.slaWarning,
+            title: '⚠️ SLA en riesgo',
+            body:
+                'La actividad "${activity.title}" está próxima a incumplir el SLA',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            recipientUid: uid,
+            senderUid: 'system',
+            senderEmail: 'sistema@crm.com',
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error enviando notificación SLA: $e');
+      }
     }
   }
 
   // ══════════════════════════════════════════════════════════
-  // GESTIÓN DE NOTIFICACIONES
+  // LEER NOTIFICACIONES
   // ══════════════════════════════════════════════════════════
 
   /// Stream de notificaciones del usuario actual
-  static Stream<QuerySnapshot<Map<String, dynamic>>> streamNotifications({
-    int limit = 20,
-  }) {
+  /// SIN orderBy para evitar necesitar índice compuesto
+  static Stream<List<OperNotification>> streamNotifications({int limit = 20}) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    if (uid.isEmpty) {
+      return Stream.value([]);
+    }
+
+    debugPrint('🔔 Consultando notificaciones para UID: $uid');
+
     return _notificationsRef
         .where('recipientUid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .limit(limit)
-        .snapshots();
+        .snapshots()
+        .map((snapshot) {
+          debugPrint('🔔 Notificaciones encontradas: ${snapshot.docs.length}');
+
+          final notifications = snapshot.docs
+              .map(OperNotification.fromDoc)
+              .toList();
+
+          // Ordenar en el cliente (para evitar índice compuesto)
+          notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return notifications;
+        });
   }
 
-  /// Contar notificaciones no leídas
+  /// Stream del conteo de no leídas
   static Stream<int> streamUnreadCount() {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    if (uid.isEmpty) {
+      return Stream.value(0);
+    }
+
     return _notificationsRef
         .where('recipientUid', isEqualTo: uid)
         .where('isRead', isEqualTo: false)
@@ -300,28 +341,42 @@ class NotificationService {
         .map((snap) => snap.docs.length);
   }
 
-  /// Marcar notificación como leída
+  /// Marcar como leída
   static Future<void> markAsRead(String notificationId) async {
-    await _notificationsRef.doc(notificationId).update({'isRead': true});
+    try {
+      await _notificationsRef.doc(notificationId).update({'isRead': true});
+    } catch (e) {
+      debugPrint('Error marcando como leída: $e');
+    }
   }
 
   /// Marcar todas como leídas
   static Future<void> markAllAsRead() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final unread = await _notificationsRef
-        .where('recipientUid', isEqualTo: uid)
-        .where('isRead', isEqualTo: false)
-        .get();
+    if (uid.isEmpty) return;
 
-    final batch = FirebaseHelper.db.batch();
-    for (final doc in unread.docs) {
-      batch.update(doc.reference, {'isRead': true});
+    try {
+      final unread = await _notificationsRef
+          .where('recipientUid', isEqualTo: uid)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = FirebaseHelper.db.batch();
+      for (final doc in unread.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Error marcando todas como leídas: $e');
     }
-    await batch.commit();
   }
 
-  /// Eliminar una notificación
+  /// Eliminar notificación
   static Future<void> deleteNotification(String notificationId) async {
-    await _notificationsRef.doc(notificationId).delete();
+    try {
+      await _notificationsRef.doc(notificationId).delete();
+    } catch (e) {
+      debugPrint('Error eliminando notificación: $e');
+    }
   }
 }

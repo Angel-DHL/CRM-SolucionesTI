@@ -82,7 +82,7 @@ class NotificationsPanel extends StatelessWidget {
 
           // Notifications list
           Flexible(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            child: StreamBuilder<List<OperNotification>>(
               stream: NotificationService.streamNotifications(limit: 30),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -92,15 +92,37 @@ class NotificationsPanel extends StatelessWidget {
                   );
                 }
 
-                final docs = snapshot.data?.docs ?? [];
-
-                if (docs.isEmpty) {
-                  return _buildEmptyState();
+                if (snapshot.hasError) {
+                  debugPrint('Error en notificaciones: ${snapshot.error}');
+                  return Padding(
+                    padding: const EdgeInsets.all(AppDimensions.xl),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.error_outline_rounded,
+                            color: AppColors.error,
+                            size: 32,
+                          ),
+                          const SizedBox(height: AppDimensions.md),
+                          Text(
+                            'Error al cargar notificaciones',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
-                final notifications = docs
-                    .map(OperNotification.fromDoc)
-                    .toList();
+                final notifications = snapshot.data ?? [];
+
+                if (notifications.isEmpty) {
+                  return _buildEmptyState();
+                }
 
                 return ListView.builder(
                   shrinkWrap: true,

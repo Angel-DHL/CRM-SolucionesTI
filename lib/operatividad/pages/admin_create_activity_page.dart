@@ -220,16 +220,19 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
 
   Future<void> _create() async {
     FocusScope.of(context).unfocus();
+
+    if (!mounted) return;
     setState(() => _error = null);
-    final slaHours = double.tryParse(_slaHoursCtrl.text) ?? 0;
 
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedUids.isEmpty) {
+      if (!mounted) return;
       setState(() => _error = 'Selecciona al menos un responsable');
       return;
     }
 
+    if (!mounted) return;
     setState(() => _loading = true);
 
     try {
@@ -240,6 +243,7 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
           .toList();
 
       final estimatedHours = double.tryParse(_estimatedHoursCtrl.text) ?? 0;
+      final slaHours = double.tryParse(_slaHoursCtrl.text) ?? 0;
 
       final data = OperActivity.createMap(
         title: _titleCtrl.text.trim(),
@@ -256,10 +260,18 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
         slaHours: slaHours,
       );
 
-      await _db.collection('oper_activities').add(data);
+      // ✅ UNA SOLA VEZ: Crear la actividad
+      final docRef = await _db.collection('oper_activities').add(data);
+
+      // ✅ Registrar en bitácora
+      await ActivityLogService.logCreated(
+        activityId: docRef.id,
+        title: _titleCtrl.text.trim(),
+      );
 
       // ✅ Notificar a los asignados
       final createdActivity = OperActivity(
+        id: docRef.id,
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         plannedStartAt: _plannedStartAt,
@@ -272,7 +284,6 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
         tags: _tags,
         estimatedHours: estimatedHours,
         slaHours: slaHours,
-        id: '',
         status: OperStatus.planned,
         progress: 0,
         actualStartAt: null,
@@ -291,17 +302,11 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
       HapticFeedback.mediumImpact();
       widget.onCreated();
 
-      final docRef = await _db.collection('oper_activities').add(data);
-      // ✅ Registrar en bitácora
-      await ActivityLogService.logCreated(
-        activityId: docRef.id,
-        title: _titleCtrl.text.trim(),
-      );
-
       if (mounted) {
         _resetForm();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = 'Error al crear la actividad: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
