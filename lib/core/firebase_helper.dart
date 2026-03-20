@@ -27,4 +27,30 @@ class FirebaseHelper {
   static CollectionReference<Map<String, dynamic>> get users {
     return db.collection('users');
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // COLECCIONES DE INVENTARIO
+  // ═══════════════════════════════════════════════════════════
+
+  static CollectionReference<Map<String, dynamic>> get inventoryItems =>
+      db.collection('inventory_items');
+
+  static CollectionReference<Map<String, dynamic>> get inventoryCategories =>
+      db.collection('inventory_categories');
+
+  static CollectionReference<Map<String, dynamic>> get inventoryLocations =>
+      db.collection('inventory_locations');
+
+  static CollectionReference<Map<String, dynamic>> get inventoryMovements =>
+      db.collection('inventory_movements');
+
+  static CollectionReference<Map<String, dynamic>> get inventorySuppliers =>
+      db.collection('inventory_suppliers');
+
+  static CollectionReference<Map<String, dynamic>> get inventoryAuditLogs =>
+      db.collection('inventory_audit_logs');
+
+  // Contadores para números secuenciales
+  static CollectionReference<Map<String, dynamic>> get inventoryCounters =>
+      db.collection('inventory_counters');
 }

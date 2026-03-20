@@ -122,4 +122,6 @@ class AppTextStyles {
     letterSpacing: 0.5,
     height: 1.4,
   );
+
+  static var h4;
 }
