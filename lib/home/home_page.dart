@@ -1,3 +1,4 @@
+import 'package:crm_solucionesti/inventory/pages/inventory_home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
@@ -126,7 +127,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
     final isTablet = Responsive.isTablet(context);
-    final isMobile = Responsive.isMobile(context);
+    Responsive.isMobile(context);
 
     if (_loading) {
       return const _LoadingSkeleton();
@@ -188,6 +189,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const OperatividadPage()));
+        break;
+      case AppModule.inventario:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const InventoryHomePage()));
         break;
       // Agregar más módulos aquí
       default:
