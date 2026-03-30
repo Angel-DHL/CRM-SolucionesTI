@@ -936,6 +936,130 @@ class InventoryService {
 
     return errors;
   }
+  // ═══════════════════════════════════════════════════════════
+  // FUNCIONES ADICIONALES PARA DASHBOARD
+  // ═══════════════════════════════════════════════════════════
+
+  /// Stream de estadísticas en tiempo real
+  Stream<InventoryStats> streamStats() {
+    return _itemsRef.snapshots().map((snapshot) {
+      final items = snapshot.docs.map(InventoryItem.fromDoc).toList();
+
+      final activeItems = items.where((i) => i.isActive).toList();
+      final products = activeItems
+          .where((i) => i.type == InventoryItemType.product)
+          .toList();
+      final services = activeItems
+          .where((i) => i.type == InventoryItemType.service)
+          .toList();
+      final assets = activeItems
+          .where((i) => i.type == InventoryItemType.asset)
+          .toList();
+
+      return InventoryStats(
+        totalItems: activeItems.length,
+        totalProducts: products.length,
+        totalServices: services.length,
+        totalAssets: assets.length,
+        lowStockItems: activeItems.where((i) => i.isStockLow).length,
+        outOfStockItems: activeItems
+            .where((i) => i.stock == 0 && i.trackInventory)
+            .length,
+        totalInventoryValue: products.fold(
+          0.0,
+          (sum, i) => sum + i.totalInventoryValue,
+        ),
+        averagePrice: activeItems.isEmpty
+            ? 0
+            : activeItems.fold(0.0, (sum, i) => sum + i.sellingPrice) /
+                  activeItems.length,
+        expiringItems: activeItems
+            .where(
+              (i) =>
+                  i.expirationDate != null &&
+                  i.expirationDate!.isBefore(
+                    DateTime.now().add(const Duration(days: 30)),
+                  ) &&
+                  i.expirationDate!.isAfter(DateTime.now()),
+            )
+            .length,
+        expiredItems: activeItems.where((i) => i.isExpired).length,
+        maintenanceNeeded: assets.where((i) => i.needsMaintenance).length,
+      );
+    });
+  }
+
+  /// Stream de actividad reciente (movimientos)
+  Stream<List<RecentActivity>> streamRecentActivity({int limit = 5}) {
+    return FirebaseHelper.inventoryMovements
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return RecentActivity(
+              id: doc.id,
+              type: data['type'] ?? 'adjustment',
+              itemName: data['itemName'] ?? 'Item desconocido',
+              quantity: data['quantity'] ?? 0,
+              userName:
+                  data['createdByName'] ?? data['createdByEmail'] ?? 'Usuario',
+              createdAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }).toList();
+        });
+  }
+
+  /// Stock por categoría para gráficos
+  Future<List<CategoryStock>> getStockByCategory({int limit = 5}) async {
+    try {
+      final snapshot = await _itemsRef.where('isActive', isEqualTo: true).get();
+
+      final items = snapshot.docs.map(InventoryItem.fromDoc).toList();
+
+      // Agrupar por categoría
+      final Map<String, int> categoryStock = {};
+      final Map<String, String> categoryNames = {};
+
+      for (final item in items) {
+        if (item.type != InventoryItemType.service) {
+          final catId = item.categoryId;
+          categoryStock[catId] = (categoryStock[catId] ?? 0) + item.stock;
+          categoryNames[catId] = catId;
+        }
+      }
+
+      // Obtener nombres de categorías
+      final categoriesSnapshot = await FirebaseHelper.inventoryCategories.get();
+      for (final doc in categoriesSnapshot.docs) {
+        if (categoryNames.containsKey(doc.id)) {
+          categoryNames[doc.id] = doc.data()['name'] ?? doc.id;
+        }
+      }
+
+      // Ordenar y limitar
+      final sorted = categoryStock.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      return sorted.take(limit).map((entry) {
+        return CategoryStock(
+          categoryId: entry.key,
+          categoryName: categoryNames[entry.key] ?? entry.key,
+          totalStock: entry.value,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting stock by category: $e');
+      return [];
+    }
+  }
+
+  /// Generar SKU público (para el formulario)
+  Future<String> generateSku(InventoryItemType type) async {
+    return _generateSku(type);
+  }
 }
 
 /// Modelo para estadísticas de inventario
@@ -964,5 +1088,40 @@ class InventoryStats {
     required this.expiringItems,
     required this.expiredItems,
     required this.maintenanceNeeded,
+  });
+}
+
+/// Modelo para actividad reciente
+class RecentActivity {
+  final String id;
+  final String type;
+  final String itemName;
+  final int quantity;
+  final String userName;
+  final DateTime createdAt;
+
+  const RecentActivity({
+    required this.id,
+    required this.type,
+    required this.itemName,
+    required this.quantity,
+    required this.userName,
+    required this.createdAt,
+  });
+
+  bool get isIncoming =>
+      type == 'purchase' || type == 'return_in' || type == 'adjustment';
+}
+
+/// Modelo para stock por categoría
+class CategoryStock {
+  final String categoryId;
+  final String categoryName;
+  final int totalStock;
+
+  const CategoryStock({
+    required this.categoryId,
+    required this.categoryName,
+    required this.totalStock,
   });
 }

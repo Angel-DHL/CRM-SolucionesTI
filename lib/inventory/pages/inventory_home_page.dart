@@ -45,19 +45,26 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
   }
 
   Future<void> _loadRole() async {
-    final user = FirebaseAuth.instance.currentUser!;
-    final token = await user.getIdTokenResult(true);
-    final claimRole = token.claims?['role'] as String?;
-    setState(() {
-      _role = UserRole.fromClaim(claimRole);
-      _loadingRole = false;
-    });
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      final token = await user.getIdTokenResult(true);
+      final claimRole = token.claims?['role'] as String?;
+      setState(() {
+        _role = UserRole.fromClaim(claimRole);
+        _loadingRole = false;
+      });
+    } catch (e) {
+      setState(() {
+        _role = UserRole.soporteTecnico;
+        _loadingRole = false;
+      });
+    }
   }
 
   void _changeView(InventoryView view) {
     setState(() => _currentView = view);
     // Cerrar drawer en móvil
-    if (Responsive.isMobile(context)) {
+    if (Responsive.isMobile(context) && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
   }
@@ -76,15 +83,27 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
       backgroundColor: AppColors.background,
       appBar: _buildAppBar(context, isMobile),
       drawer: isMobile ? _buildDrawer(role) : null,
-      body: Row(
-        children: [
-          // Sidebar (solo desktop)
-          if (isDesktop) _buildSidebar(role),
+      body: SafeArea(child: _buildBody(role, isMobile, isDesktop)),
+    );
+  }
 
-          // Contenido principal
-          Expanded(child: _buildCurrentView(role)),
-        ],
-      ),
+  // ✅ NUEVO: Body separado para mejor control
+  Widget _buildBody(UserRole role, bool isMobile, bool isDesktop) {
+    if (isMobile) {
+      // En móvil: solo el contenido
+      return _buildCurrentView(role);
+    }
+
+    // En tablet/desktop: sidebar + contenido
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Sidebar
+        if (isDesktop) _buildSidebar(role),
+
+        // Contenido principal
+        Expanded(child: _buildCurrentView(role)),
+      ],
     );
   }
 
@@ -94,7 +113,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       leading: isMobile
-          ? null
+          ? null // Usa el icono de hamburguesa por defecto
           : IconButton(
               onPressed: () => Navigator.pop(context),
               icon: Container(
@@ -111,6 +130,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
               ),
             ),
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (!isMobile) ...[
             Container(
@@ -129,6 +149,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           ],
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Inventario',
@@ -163,6 +184,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _ViewButton(
             icon: Icons.dashboard_rounded,
@@ -195,88 +217,85 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
 
   Widget _buildSidebar(UserRole role) {
     return Container(
-      width: AppDimensions.sidebarWidth,
+      width: 250, // ✅ Ancho fijo
+      height: double.infinity, // ✅ Altura completa
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(right: BorderSide(color: AppColors.divider, width: 1)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppDimensions.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MÓDULOS',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.textHint,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimensions.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'MÓDULOS',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textHint,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppDimensions.sm),
-                _SidebarItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  isSelected: _currentView == InventoryView.dashboard,
-                  onTap: () => _changeView(InventoryView.dashboard),
-                ),
-                _SidebarItem(
-                  icon: Icons.inventory_2_rounded,
-                  label: 'Inventario',
-                  isSelected: _currentView == InventoryView.items,
-                  onTap: () => _changeView(InventoryView.items),
-                ),
-                _SidebarItem(
-                  icon: Icons.category_rounded,
-                  label: 'Categorías',
-                  isSelected: _currentView == InventoryView.categories,
-                  onTap: () => _changeView(InventoryView.categories),
-                ),
-                _SidebarItem(
-                  icon: Icons.local_shipping_rounded,
-                  label: 'Proveedores',
-                  isSelected: _currentView == InventoryView.suppliers,
-                  onTap: () => _changeView(InventoryView.suppliers),
-                ),
-                _SidebarItem(
-                  icon: Icons.location_on_rounded,
-                  label: 'Ubicaciones',
-                  isSelected: _currentView == InventoryView.locations,
-                  onTap: () => _changeView(InventoryView.locations),
-                ),
-              ],
+                  const SizedBox(height: AppDimensions.sm),
+                  _SidebarItem(
+                    icon: Icons.dashboard_rounded,
+                    label: 'Dashboard',
+                    isSelected: _currentView == InventoryView.dashboard,
+                    onTap: () => _changeView(InventoryView.dashboard),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.inventory_2_rounded,
+                    label: 'Inventario',
+                    isSelected: _currentView == InventoryView.items,
+                    onTap: () => _changeView(InventoryView.items),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.category_rounded,
+                    label: 'Categorías',
+                    isSelected: _currentView == InventoryView.categories,
+                    onTap: () => _changeView(InventoryView.categories),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.local_shipping_rounded,
+                    label: 'Proveedores',
+                    isSelected: _currentView == InventoryView.suppliers,
+                    onTap: () => _changeView(InventoryView.suppliers),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.location_on_rounded,
+                    label: 'Ubicaciones',
+                    isSelected: _currentView == InventoryView.locations,
+                    onTap: () => _changeView(InventoryView.locations),
+                  ),
+                  const SizedBox(height: AppDimensions.lg),
+                  const Divider(),
+                  const SizedBox(height: AppDimensions.lg),
+                  Text(
+                    'OPERACIONES',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.sm),
+                  _SidebarItem(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Movimientos',
+                    isSelected: _currentView == InventoryView.movements,
+                    onTap: () => _changeView(InventoryView.movements),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.assessment_rounded,
+                    label: 'Reportes',
+                    isSelected: _currentView == InventoryView.reports,
+                    onTap: () => _changeView(InventoryView.reports),
+                  ),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(AppDimensions.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'OPERACIONES',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.textHint,
-                  ),
-                ),
-                const SizedBox(height: AppDimensions.sm),
-                _SidebarItem(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Movimientos',
-                  isSelected: _currentView == InventoryView.movements,
-                  onTap: () => _changeView(InventoryView.movements),
-                ),
-                _SidebarItem(
-                  icon: Icons.assessment_rounded,
-                  label: 'Reportes',
-                  isSelected: _currentView == InventoryView.reports,
-                  onTap: () => _changeView(InventoryView.reports),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          // Quick stats
+          // Quick stats al final
           _buildQuickStats(),
         ],
       ),
@@ -293,6 +312,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -312,7 +332,6 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             ],
           ),
           const SizedBox(height: AppDimensions.sm),
-          // Aquí se agregarían stats reales
           _QuickStatRow(label: 'Items activos', value: '-'),
           _QuickStatRow(label: 'Stock bajo', value: '-', isWarning: true),
           _QuickStatRow(label: 'Valor total', value: '-'),
@@ -328,6 +347,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           children: [
             // Header
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(AppDimensions.lg),
               decoration: BoxDecoration(color: AppColors.primarySurface),
               child: Row(
@@ -358,7 +378,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             ),
             const SizedBox(height: AppDimensions.md),
 
-            // Menu items
+            // Lista de opciones
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(
@@ -418,8 +438,9 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
   }
 
   Widget _buildCurrentView(UserRole role) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
+    // ✅ Key único para forzar rebuild cuando cambia la vista
+    return KeyedSubtree(
+      key: ValueKey(_currentView),
       child: switch (_currentView) {
         InventoryView.dashboard => InventoryDashboardPage(role: role),
         InventoryView.items => InventoryListPage(role: role),
@@ -504,37 +525,44 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected ? AppColors.primarySurface : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-      child: InkWell(
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: isSelected ? AppColors.primarySurface : Colors.transparent,
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppDimensions.md,
-            vertical: AppDimensions.md,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-              const SizedBox(width: AppDimensions.md),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.md,
+              vertical: AppDimensions.md,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                ),
+                const SizedBox(width: AppDimensions.md),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -557,24 +585,27 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-      ),
-      title: Text(
-        label,
-        style: AppTextStyles.bodyMedium.copyWith(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ListTile(
+        leading: Icon(
+          icon,
           color: isSelected ? AppColors.primary : AppColors.textSecondary,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
         ),
+        title: Text(
+          label,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+        selected: isSelected,
+        selectedTileColor: AppColors.primarySurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        ),
+        onTap: onTap,
       ),
-      selected: isSelected,
-      selectedTileColor: AppColors.primarySurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-      ),
-      onTap: onTap,
     );
   }
 }

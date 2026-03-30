@@ -1,7 +1,6 @@
 // lib/inventory/widgets/charts/stock_bar_chart.dart
 
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -38,102 +37,53 @@ class StockBarChart extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (title != null) ...[
           Text(title!, style: AppTextStyles.h4),
           const SizedBox(height: AppDimensions.md),
         ],
-        SizedBox(
-          height: height,
-          child: BarChart(
-            BarChartData(
-              alignment: BarChartAlignment.spaceAround,
-              maxY: maxValue * 1.2,
-              barTouchData: BarTouchData(
-                enabled: true,
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (_) => AppColors.surface,
-                  tooltipPadding: const EdgeInsets.all(8),
-                  tooltipMargin: 8,
-                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    return BarTooltipItem(
-                      '${data[groupIndex].label}\n${rod.toY.toInt()}',
-                      AppTextStyles.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+        ...data.map((item) {
+          final percentage = (item.value / maxValue);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppDimensions.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      item.label,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontWeight: FontWeight.w500,
                       ),
-                    );
-                  },
-                ),
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      if (value.toInt() >= data.length) return const SizedBox();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          data[value.toInt()].shortLabel ??
-                              data[value.toInt()].label.substring(0, 3),
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: AppColors.textHint,
-                          ),
-                        ),
-                      );
-                    },
-                    reservedSize: 30,
-                  ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      return Text(
-                        value.toInt().toString(),
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.textHint,
-                        ),
-                      );
-                    },
-                    reservedSize: 40,
-                  ),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-              ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(color: AppColors.divider, strokeWidth: 1);
-                },
-              ),
-              borderData: FlBorderData(show: false),
-              barGroups: data.asMap().entries.map((entry) {
-                return BarChartGroupData(
-                  x: entry.key,
-                  barRods: [
-                    BarChartRodData(
-                      toY: entry.value.value.toDouble(),
-                      color: entry.value.color ?? AppColors.primary,
-                      width: 20,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
+                    ),
+                    Text(
+                      '${item.value}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textHint,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
-                  showingTooltipIndicators: showValues ? [0] : [],
-                );
-              }).toList(),
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: percentage,
+                    minHeight: 8,
+                    backgroundColor: AppColors.divider,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      item.color ?? AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }

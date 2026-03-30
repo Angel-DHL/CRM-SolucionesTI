@@ -1,3 +1,5 @@
+// lib/core/theme/app_text_styles.dart
+
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
@@ -6,8 +8,7 @@ class AppTextStyles {
   AppTextStyles._();
 
   // ─── FONT FAMILY ────────────────────────────────────────
-  // Si quieres Google Fonts, agrega el paquete y cambia aquí.
-  static const String _fontFamily = 'Segoe UI'; // Fallback del sistema
+  static const String _fontFamily = 'Segoe UI';
 
   // ─── DISPLAY ────────────────────────────────────────────
   static const TextStyle displayLarge = TextStyle(
@@ -48,6 +49,31 @@ class AppTextStyles {
   static const TextStyle h3 = TextStyle(
     fontFamily: _fontFamily,
     fontSize: 18,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    color: AppColors.textPrimary,
+  );
+
+  // 👇 AGREGA ESTO - Era lo que faltaba
+  static const TextStyle h4 = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    color: AppColors.textPrimary,
+  );
+
+  static const TextStyle h5 = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    color: AppColors.textPrimary,
+  );
+
+  static const TextStyle h6 = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
     height: 1.4,
     color: AppColors.textPrimary,
@@ -123,5 +149,12 @@ class AppTextStyles {
     height: 1.4,
   );
 
-  static var h4;
+  // ─── CAPTION (útil para notas pequeñas) ─────────────────
+  static const TextStyle caption = TextStyle(
+    fontFamily: _fontFamily,
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+    color: AppColors.textHint,
+  );
 }

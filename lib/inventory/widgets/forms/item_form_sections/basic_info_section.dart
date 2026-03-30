@@ -216,36 +216,40 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      color: isSelected ? type.color.withOpacity(0.1) : AppColors.surface,
       borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(AppDimensions.md),
-        decoration: BoxDecoration(
-          color: isSelected ? type.color.withOpacity(0.1) : AppColors.surface,
-          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-          border: Border.all(
-            color: isSelected ? type.color : AppColors.border,
-            width: isSelected ? 2 : 1,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.all(AppDimensions.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            border: Border.all(
+              color: isSelected ? type.color : AppColors.border,
+              width: isSelected ? 2 : 1,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              type.icon,
-              color: isSelected ? type.color : AppColors.textHint,
-              size: 28,
-            ),
-            const SizedBox(height: AppDimensions.xs),
-            Text(
-              type.label,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: isSelected ? type.color : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                type.icon,
+                color: isSelected ? type.color : AppColors.textHint,
+                size: 28,
               ),
-            ),
-          ],
+              const SizedBox(height: AppDimensions.xs),
+              Text(
+                type.label,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: isSelected ? type.color : AppColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

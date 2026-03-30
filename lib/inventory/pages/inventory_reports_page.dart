@@ -30,39 +30,40 @@ class _InventoryReportsPageState extends State<InventoryReportsPage> {
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
 
-    return SingleChildScrollView(
+    // ✅ CAMBIO: Usar ListView en lugar de SingleChildScrollView + Column
+    return ListView(
       padding: EdgeInsets.all(isMobile ? AppDimensions.md : AppDimensions.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Text(
-            'Reportes de Inventario',
-            style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.w700),
+      children: [
+        // Header
+        Text(
+          'Reportes de Inventario',
+          style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppDimensions.xs),
+        Text(
+          'Genera reportes en PDF o CSV para análisis',
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
           ),
-          const SizedBox(height: AppDimensions.xs),
-          Text(
-            'Genera reportes en PDF o CSV para análisis',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
+        ),
+        const SizedBox(height: AppDimensions.xl),
+
+        // Rango de fechas global
+        _buildDateRangeSelector(),
+        const SizedBox(height: AppDimensions.xl),
+
+        // Grid de reportes
+        if (isMobile) ..._buildReportListMobile() else _buildReportGrid(),
+
+        // Generación activa
+        if (_isGenerating) ...[
           const SizedBox(height: AppDimensions.xl),
-
-          // Rango de fechas global
-          _buildDateRangeSelector(),
-          const SizedBox(height: AppDimensions.xl),
-
-          // Grid de reportes
-          isMobile ? _buildReportListMobile() : _buildReportGrid(),
-
-          // Generación activa
-          if (_isGenerating) ...[
-            const SizedBox(height: AppDimensions.xl),
-            _buildGeneratingIndicator(),
-          ],
+          _buildGeneratingIndicator(),
         ],
-      ),
+
+        // Espacio final
+        const SizedBox(height: AppDimensions.xl),
+      ],
     );
   }
 
@@ -80,45 +81,58 @@ class _InventoryReportsPageState extends State<InventoryReportsPage> {
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.date_range_rounded, color: AppColors.primary),
-          const SizedBox(width: AppDimensions.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Rango de fechas', style: AppTextStyles.labelMedium),
-                Text(
-                  _dateRange != null
-                      ? '${dateFormat.format(_dateRange!.start)} - ${dateFormat.format(_dateRange!.end)}'
-                      : 'Sin rango seleccionado (se incluye todo)',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+          Row(
+            children: [
+              const Icon(Icons.date_range_rounded, color: AppColors.primary),
+              const SizedBox(width: AppDimensions.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Rango de fechas', style: AppTextStyles.labelMedium),
+                    Text(
+                      _dateRange != null
+                          ? '${dateFormat.format(_dateRange!.start)} - ${dateFormat.format(_dateRange!.end)}'
+                          : 'Sin rango seleccionado (se incluye todo)',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimensions.md),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickDateRange,
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: Text(_dateRange != null ? 'Cambiar' : 'Seleccionar'),
+                ),
+              ),
+              if (_dateRange != null) ...[
+                const SizedBox(width: AppDimensions.sm),
+                IconButton(
+                  onPressed: () => setState(() => _dateRange = null),
+                  icon: const Icon(Icons.clear_rounded),
+                  tooltip: 'Limpiar rango',
                 ),
               ],
-            ),
+            ],
           ),
-          OutlinedButton(
-            onPressed: _pickDateRange,
-            child: Text(_dateRange != null ? 'Cambiar' : 'Seleccionar'),
-          ),
-          if (_dateRange != null) ...[
-            const SizedBox(width: AppDimensions.sm),
-            IconButton(
-              onPressed: () => setState(() => _dateRange = null),
-              icon: const Icon(Icons.clear_rounded),
-              tooltip: 'Limpiar rango',
-            ),
-          ],
         ],
       ),
     );
   }
 
   // ═══════════════════════════════════════════════════════════
-  // GRID DE REPORTES
+  // GRID DE REPORTES (Desktop)
   // ═══════════════════════════════════════════════════════════
 
   Widget _buildReportGrid() {
@@ -129,107 +143,109 @@ class _InventoryReportsPageState extends State<InventoryReportsPage> {
       crossAxisSpacing: AppDimensions.md,
       mainAxisSpacing: AppDimensions.md,
       childAspectRatio: 1.4,
-      children: _reportCards,
+      children: _getReportCards(),
     );
   }
 
-  Widget _buildReportListMobile() {
-    return Column(
-      children: _reportCards
-          .map(
-            (card) => Padding(
-              padding: const EdgeInsets.only(bottom: AppDimensions.md),
-              child: card,
-            ),
-          )
-          .toList(),
-    );
+  // ═══════════════════════════════════════════════════════════
+  // LISTA DE REPORTES (Mobile) - ✅ CORREGIDO
+  // ═══════════════════════════════════════════════════════════
+
+  List<Widget> _buildReportListMobile() {
+    return _getReportCards().map((card) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppDimensions.md),
+        child: card,
+      );
+    }).toList();
   }
 
-  List<Widget> get _reportCards => [
-    _ReportCard(
-      type: ReportType.inventoryList,
-      icon: Icons.list_alt_rounded,
-      color: AppColors.primary,
-      description: 'Lista completa de todos los items del inventario',
-      isGenerating:
-          _isGenerating && _selectedReport == ReportType.inventoryList,
-      onGenerate: () => _generateReport(ReportType.inventoryList),
-      onShare: () => _shareReport(ReportType.inventoryList),
-    ),
-    _ReportCard(
-      type: ReportType.lowStock,
-      icon: Icons.warning_rounded,
-      color: AppColors.error,
-      description: 'Items por debajo del stock mínimo',
-      isGenerating: _isGenerating && _selectedReport == ReportType.lowStock,
-      onGenerate: () => _generateReport(ReportType.lowStock),
-      onShare: () => _shareReport(ReportType.lowStock),
-    ),
-    _ReportCard(
-      type: ReportType.valuation,
-      icon: Icons.attach_money_rounded,
-      color: AppColors.success,
-      description: 'Valor monetario del inventario actual',
-      isGenerating: _isGenerating && _selectedReport == ReportType.valuation,
-      onGenerate: () => _generateReport(ReportType.valuation),
-      onShare: () => _shareReport(ReportType.valuation),
-    ),
-    _ReportCard(
-      type: ReportType.movements,
-      icon: Icons.swap_horiz_rounded,
-      color: AppColors.info,
-      description: 'Historial de entradas y salidas',
-      isGenerating: _isGenerating && _selectedReport == ReportType.movements,
-      onGenerate: () => _generateReport(ReportType.movements),
-      onShare: () => _shareReport(ReportType.movements),
-    ),
-    _ReportCard(
-      type: ReportType.byCategory,
-      icon: Icons.category_rounded,
-      color: const Color(0xFF9C27B0),
-      description: 'Distribución de items por categoría',
-      isGenerating: _isGenerating && _selectedReport == ReportType.byCategory,
-      onGenerate: () => _generateReport(ReportType.byCategory),
-      onShare: () => _shareReport(ReportType.byCategory),
-    ),
-    _ReportCard(
-      type: ReportType.byLocation,
-      icon: Icons.location_on_rounded,
-      color: const Color(0xFF009688),
-      description: 'Distribución por ubicación/almacén',
-      isGenerating: _isGenerating && _selectedReport == ReportType.byLocation,
-      onGenerate: () => _generateReport(ReportType.byLocation),
-      onShare: () => _shareReport(ReportType.byLocation),
-    ),
-    _ReportCard(
-      type: ReportType.bySupplier,
-      icon: Icons.local_shipping_rounded,
-      color: const Color(0xFFFF9800),
-      description: 'Productos agrupados por proveedor',
-      isGenerating: _isGenerating && _selectedReport == ReportType.bySupplier,
-      onGenerate: () => _generateReport(ReportType.bySupplier),
-      onShare: () => _shareReport(ReportType.bySupplier),
-    ),
-    _ReportCard(
-      type: ReportType.expiring,
-      icon: Icons.event_busy_rounded,
-      color: const Color(0xFFF44336),
-      description: 'Productos próximos a vencer',
-      isGenerating: _isGenerating && _selectedReport == ReportType.expiring,
-      onGenerate: () => _generateReport(ReportType.expiring),
-      onShare: () => _shareReport(ReportType.expiring),
-    ),
-    _ReportCard(
-      type: ReportType.assets,
-      icon: Icons.business_center_rounded,
-      color: const Color(0xFF607D8B),
-      description: 'Inventario de activos fijos de la empresa',
-      isGenerating: _isGenerating && _selectedReport == ReportType.assets,
-      onGenerate: () => _generateReport(ReportType.assets),
-      onShare: () => _shareReport(ReportType.assets),
-    ),
-  ];
+  List<Widget> _getReportCards() {
+    return [
+      _ReportCard(
+        type: ReportType.inventoryList,
+        icon: Icons.list_alt_rounded,
+        color: AppColors.primary,
+        description: 'Lista completa de todos los items del inventario',
+        isGenerating:
+            _isGenerating && _selectedReport == ReportType.inventoryList,
+        onGenerate: () => _generateReport(ReportType.inventoryList),
+        onShare: () => _shareReport(ReportType.inventoryList),
+      ),
+      _ReportCard(
+        type: ReportType.lowStock,
+        icon: Icons.warning_rounded,
+        color: AppColors.error,
+        description: 'Items por debajo del stock mínimo',
+        isGenerating: _isGenerating && _selectedReport == ReportType.lowStock,
+        onGenerate: () => _generateReport(ReportType.lowStock),
+        onShare: () => _shareReport(ReportType.lowStock),
+      ),
+      _ReportCard(
+        type: ReportType.valuation,
+        icon: Icons.attach_money_rounded,
+        color: AppColors.success,
+        description: 'Valor monetario del inventario actual',
+        isGenerating: _isGenerating && _selectedReport == ReportType.valuation,
+        onGenerate: () => _generateReport(ReportType.valuation),
+        onShare: () => _shareReport(ReportType.valuation),
+      ),
+      _ReportCard(
+        type: ReportType.movements,
+        icon: Icons.swap_horiz_rounded,
+        color: AppColors.info,
+        description: 'Historial de entradas y salidas',
+        isGenerating: _isGenerating && _selectedReport == ReportType.movements,
+        onGenerate: () => _generateReport(ReportType.movements),
+        onShare: () => _shareReport(ReportType.movements),
+      ),
+      _ReportCard(
+        type: ReportType.byCategory,
+        icon: Icons.category_rounded,
+        color: const Color(0xFF9C27B0),
+        description: 'Distribución de items por categoría',
+        isGenerating: _isGenerating && _selectedReport == ReportType.byCategory,
+        onGenerate: () => _generateReport(ReportType.byCategory),
+        onShare: () => _shareReport(ReportType.byCategory),
+      ),
+      _ReportCard(
+        type: ReportType.byLocation,
+        icon: Icons.location_on_rounded,
+        color: const Color(0xFF009688),
+        description: 'Distribución por ubicación/almacén',
+        isGenerating: _isGenerating && _selectedReport == ReportType.byLocation,
+        onGenerate: () => _generateReport(ReportType.byLocation),
+        onShare: () => _shareReport(ReportType.byLocation),
+      ),
+      _ReportCard(
+        type: ReportType.bySupplier,
+        icon: Icons.local_shipping_rounded,
+        color: const Color(0xFFFF9800),
+        description: 'Productos agrupados por proveedor',
+        isGenerating: _isGenerating && _selectedReport == ReportType.bySupplier,
+        onGenerate: () => _generateReport(ReportType.bySupplier),
+        onShare: () => _shareReport(ReportType.bySupplier),
+      ),
+      _ReportCard(
+        type: ReportType.expiring,
+        icon: Icons.event_busy_rounded,
+        color: const Color(0xFFF44336),
+        description: 'Productos próximos a vencer',
+        isGenerating: _isGenerating && _selectedReport == ReportType.expiring,
+        onGenerate: () => _generateReport(ReportType.expiring),
+        onShare: () => _shareReport(ReportType.expiring),
+      ),
+      _ReportCard(
+        type: ReportType.assets,
+        icon: Icons.business_center_rounded,
+        color: const Color(0xFF607D8B),
+        description: 'Inventario de activos fijos de la empresa',
+        isGenerating: _isGenerating && _selectedReport == ReportType.assets,
+        onGenerate: () => _generateReport(ReportType.assets),
+        onShare: () => _shareReport(ReportType.assets),
+      ),
+    ];
+  }
 
   Widget _buildGeneratingIndicator() {
     return Container(
@@ -343,7 +359,7 @@ class _InventoryReportsPageState extends State<InventoryReportsPage> {
 }
 
 // ══════════════════════════════════════════════════════════════
-// WIDGET DE TARJETA DE REPORTE
+// WIDGET DE TARJETA DE REPORTE - ✅ CORREGIDO
 // ══════════════════════════════════════════════════════════════
 
 class _ReportCard extends StatelessWidget {
@@ -374,9 +390,10 @@ class _ReportCard extends StatelessWidget {
         side: BorderSide(color: AppColors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppDimensions.lg),
+        padding: const EdgeInsets.all(AppDimensions.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // ✅ IMPORTANTE
           children: [
             // Ícono y título
             Row(
@@ -402,18 +419,16 @@ class _ReportCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppDimensions.md),
+            const SizedBox(height: AppDimensions.sm),
 
             // Descripción
-            Expanded(
-              child: Text(
-                description,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+            Text(
+              description,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppDimensions.md),
 

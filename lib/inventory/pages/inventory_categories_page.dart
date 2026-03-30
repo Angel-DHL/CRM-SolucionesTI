@@ -218,18 +218,24 @@ class _InventoryCategoriesPageState extends State<InventoryCategoriesPage> {
           childrenMap.putIfAbsent(c.parentId!, () => []).add(c);
         }
 
+        // ✅ CORRECCIÓN: Usar CustomScrollView en lugar de ListView.builder
         return RefreshIndicator(
           onRefresh: () async => setState(() {}),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(AppDimensions.md),
-            itemCount: rootCategories.length,
-            itemBuilder: (context, index) {
-              return _buildCategoryNode(
-                rootCategories[index],
-                childrenMap,
-                allCategories,
-              );
-            },
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(AppDimensions.md),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    return _buildCategoryNode(
+                      rootCategories[index],
+                      childrenMap,
+                      allCategories,
+                    );
+                  }, childCount: rootCategories.length),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -245,7 +251,9 @@ class _InventoryCategoriesPageState extends State<InventoryCategoriesPage> {
     final isExpanded = _expandedIds.contains(category.id);
     final hasChildren = children.isNotEmpty;
 
+    // ✅ Usar Column con crossAxisAlignment en lugar de Stack
     return Column(
+      mainAxisSize: MainAxisSize.min, // ✅ IMPORTANTE
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Tarjeta de la categoría
@@ -312,13 +320,13 @@ class _InventoryCategoriesPageState extends State<InventoryCategoriesPage> {
 
         // Hijos expandidos
         if (isExpanded && hasChildren)
+          // ✅ Usar spread operator directamente sin Column adicional
           ...children.map(
             (child) => _buildCategoryNode(child, childrenMap, allCategories),
           ),
       ],
     );
   }
-
   // ═══════════════════════════════════════════════════════════
   // PANEL LATERAL DE DETALLE
   // ═══════════════════════════════════════════════════════════
