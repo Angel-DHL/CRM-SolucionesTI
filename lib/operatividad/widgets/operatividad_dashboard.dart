@@ -18,6 +18,7 @@ import 'charts/weekly_trend_chart.dart';
 import 'charts/collaborator_metrics_view.dart';
 import 'charts/monthly_comparison_chart.dart';
 import 'charts/workload_prediction_view.dart';
+import 'charts/client_activity_chart.dart';
 import 'report_config_dialog.dart';
 import 'collaborator_home_view.dart';
 
@@ -347,6 +348,11 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
 
         // Fila 4: Comparativo mensual
         MonthlyComparisonChart(activities: widget.activities),
+
+        const SizedBox(height: AppDimensions.lg),
+
+        // Fila 4.5: Actividades por cliente (Integración CRM)
+        ClientActivityChart(activities: widget.activities),
 
         const SizedBox(height: AppDimensions.lg),
 

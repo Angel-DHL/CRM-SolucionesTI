@@ -59,11 +59,15 @@ class OperActivity {
   final double actualHours;
   final List<String> dependencies;
 
-  // ✅ NUEVOS CAMPOS SLA
+  // ✅ CAMPOS SLA
   final double slaHours; // Horas límite de SLA (0 = sin SLA)
   final DateTime? slaDeadline; // Fecha/hora límite del SLA
   final bool slaBreached; // Si ya se rompió el SLA
   final DateTime? slaBreachedAt; // Cuándo se rompió
+
+  // ✅ INTEGRACIÓN CRM - Cliente asignado (opcional)
+  final String? clientId;     // ID del contacto CRM
+  final String? clientName;   // Nombre del cliente para visualización rápida
 
   final String createdByUid;
   final String createdByEmail;
@@ -94,6 +98,8 @@ class OperActivity {
     this.slaDeadline,
     this.slaBreached = false,
     this.slaBreachedAt,
+    this.clientId,
+    this.clientName,
     required this.createdByUid,
     required this.createdByEmail,
     required this.createdAt,
@@ -142,6 +148,8 @@ class OperActivity {
       slaDeadline: parseTimestampNullable(d['slaDeadline']),
       slaBreached: d['slaBreached'] == true,
       slaBreachedAt: parseTimestampNullable(d['slaBreachedAt']),
+      clientId: d['clientId'] as String?,
+      clientName: d['clientName'] as String?,
       createdByUid: (d['createdByUid'] ?? '').toString(),
       createdByEmail: (d['createdByEmail'] ?? '').toString(),
       createdAt: parseTimestamp(d['createdAt']),
@@ -167,6 +175,8 @@ class OperActivity {
     double estimatedHours = 0,
     List<String> dependencies = const [],
     double slaHours = 0,
+    String? clientId,
+    String? clientName,
   }) {
     // Calcular deadline del SLA
     DateTime? slaDeadline;
@@ -200,6 +210,8 @@ class OperActivity {
           : null,
       'slaBreached': false,
       'slaBreachedAt': null,
+      'clientId': clientId,
+      'clientName': clientName,
       'createdByUid': createdByUid,
       'createdByEmail': createdByEmail,
       'createdAt': FieldValue.serverTimestamp(),
@@ -337,6 +349,8 @@ class OperActivity {
     DateTime? slaDeadline,
     bool? slaBreached,
     DateTime? slaBreachedAt,
+    String? clientId,
+    String? clientName,
   }) {
     return OperActivity(
       id: id,
@@ -361,6 +375,8 @@ class OperActivity {
       slaDeadline: slaDeadline ?? this.slaDeadline,
       slaBreached: slaBreached ?? this.slaBreached,
       slaBreachedAt: slaBreachedAt ?? this.slaBreachedAt,
+      clientId: clientId ?? this.clientId,
+      clientName: clientName ?? this.clientName,
       createdByUid: createdByUid,
       createdByEmail: createdByEmail,
       createdAt: createdAt,

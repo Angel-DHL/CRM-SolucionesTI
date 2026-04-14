@@ -1,3 +1,4 @@
+import 'package:crm_solucionesti/crm/pages/crm_home_page.dart';
 import 'package:crm_solucionesti/inventory/pages/inventory_home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -194,6 +195,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const InventoryHomePage()));
+        break;
+      case AppModule.crm:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const CrmHomePage()));
         break;
       // Agregar más módulos aquí
       default:
@@ -946,11 +952,11 @@ class _DashboardStats extends StatelessWidget {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: isMobile ? 2 : 4,
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 280,
                 crossAxisSpacing: AppDimensions.md,
                 mainAxisSpacing: AppDimensions.md,
-                childAspectRatio: isMobile ? 1.3 : 1.8,
+                childAspectRatio: isMobile ? 1.3 : 1.4,
               ),
               itemCount: stats.length,
               itemBuilder: (context, index) {
@@ -1231,11 +1237,11 @@ class _ModulesSection extends StatelessWidget {
               : GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isMobile ? 2 : 4,
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 250,
                     crossAxisSpacing: AppDimensions.md,
                     mainAxisSpacing: AppDimensions.md,
-                    childAspectRatio: isMobile ? 1.1 : 1.3,
+                    childAspectRatio: isMobile ? 1.0 : 1.1,
                   ),
                   itemCount: modules.length,
                   itemBuilder: (context, index) {
@@ -1257,8 +1263,8 @@ class _ModulesSection extends StatelessWidget {
     switch (m) {
       case AppModule.operatividad:
         return Icons.dashboard_customize_rounded;
-      case AppModule.ventas:
-        return Icons.point_of_sale_rounded;
+      case AppModule.crm:
+        return Icons.people_alt_rounded;
       case AppModule.inventario:
         return Icons.inventory_2_rounded;
       case AppModule.marketing:

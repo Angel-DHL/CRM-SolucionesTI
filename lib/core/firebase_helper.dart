@@ -53,4 +53,20 @@ class FirebaseHelper {
   // Contadores para números secuenciales
   static CollectionReference<Map<String, dynamic>> get inventoryCounters =>
       db.collection('inventory_counters');
+
+  // ═══════════════════════════════════════════════════════════
+  // COLECCIONES DE CRM
+  // ═══════════════════════════════════════════════════════════
+
+  /// Leads del sitio web (colección existente)
+  static CollectionReference<Map<String, dynamic>> get leads =>
+      db.collection('leads');
+
+  /// Contactos del CRM (leads convertidos + manuales)
+  static CollectionReference<Map<String, dynamic>> get crmContacts =>
+      db.collection('crm_contacts');
+
+  /// Logs de actividad del CRM (notas, llamadas, cambios de estatus)
+  static CollectionReference<Map<String, dynamic>> get crmActivityLogs =>
+      db.collection('crm_activity_logs');
 }

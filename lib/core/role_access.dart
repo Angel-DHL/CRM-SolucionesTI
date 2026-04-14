@@ -2,7 +2,7 @@ import 'role.dart';
 
 enum AppModule {
   operatividad,
-  ventas,
+  crm,
   inventario,
   marketing,
   soporte,
@@ -14,8 +14,8 @@ extension AppModuleX on AppModule {
     switch (this) {
       case AppModule.operatividad:
         return 'Operatividad';
-      case AppModule.ventas:
-        return 'Ventas';
+      case AppModule.crm:
+        return 'CRM';
       case AppModule.inventario:
         return 'Inventario';
       case AppModule.marketing:
@@ -31,7 +31,7 @@ extension AppModuleX on AppModule {
 class RoleAccess {
   static const allModules = [
     AppModule.operatividad,
-    AppModule.ventas,
+    AppModule.crm,
     AppModule.inventario,
     AppModule.marketing,
     AppModule.soporte,
@@ -50,6 +50,7 @@ class RoleAccess {
         return module == AppModule.soporte ||
             module == AppModule.proyectos ||
             module == AppModule.inventario ||
+            module == AppModule.crm ||
             module == AppModule.operatividad;
     }
   }

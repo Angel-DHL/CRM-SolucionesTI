@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/firebase_helper.dart';
+import '../../crm/models/crm_contact.dart';
+import '../../crm/services/crm_service.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimensions.dart';
@@ -47,6 +49,10 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
   final List<String> _tags = [];
   final _tagController = TextEditingController();
 
+  // CRM Client
+  String? _selectedClientId;
+  String? _selectedClientName;
+
   bool _loading = false;
   String? _error;
 
@@ -60,10 +66,14 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
       duration: const Duration(milliseconds: 300),
     );
     _animController.forward();
+    _estimatedHoursCtrl.addListener(_updateEndDateTime);
+    _slaHoursCtrl.addListener(_updateEndDateTime);
   }
 
   @override
   void dispose() {
+    _estimatedHoursCtrl.removeListener(_updateEndDateTime);
+    _slaHoursCtrl.removeListener(_updateEndDateTime);
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _estimatedHoursCtrl.dispose();
@@ -71,6 +81,30 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
     _animController.dispose();
     _slaHoursCtrl.dispose();
     super.dispose();
+  }
+
+  void _updateEndDateTime() {
+    if (!mounted) return;
+    final double? estimated = double.tryParse(_estimatedHoursCtrl.text);
+    final double? sla = double.tryParse(_slaHoursCtrl.text);
+    final double hoursToAdd = (estimated != null && estimated > 0) 
+        ? estimated 
+        : (sla != null && sla > 0 ? sla : 0);
+    
+    if (hoursToAdd > 0) {
+      final start = _plannedStartAt;
+      final end = start.add(Duration(minutes: (hoursToAdd * 60).round()));
+      setState(() {
+        _endDate = end;
+        _endTime = TimeOfDay.fromDateTime(end);
+      });
+    } else {
+      if (_plannedEndAt.isBefore(_plannedStartAt)) {
+        setState(() {
+          _endDate = _startDate.add(const Duration(days: 1));
+        });
+      }
+    }
   }
 
   DateTime get _plannedStartAt => DateTime(
@@ -128,9 +162,6 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
     setState(() {
       if (isStart) {
         _startDate = date;
-        if (_endDate.isBefore(_startDate)) {
-          _endDate = _startDate.add(const Duration(days: 1));
-        }
       } else {
         _endDate = date;
         if (_endDate.isBefore(_startDate)) {
@@ -138,6 +169,8 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
         }
       }
     });
+    
+    if (isStart) _updateEndDateTime();
   }
 
   Future<void> _pickTime({required bool isStart}) async {
@@ -169,6 +202,8 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
         _endTime = time;
       }
     });
+    
+    if (isStart) _updateEndDateTime();
   }
 
   void _addTag() {
@@ -258,6 +293,8 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
         tags: _tags,
         estimatedHours: estimatedHours,
         slaHours: slaHours,
+        clientId: _selectedClientId,
+        clientName: _selectedClientName,
       );
 
       // ✅ UNA SOLA VEZ: Crear la actividad
@@ -330,6 +367,8 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
       _endTime = const TimeOfDay(hour: 18, minute: 0);
       _priority = 'medium';
       _error = null;
+      _selectedClientId = null;
+      _selectedClientName = null;
     });
   }
 
@@ -553,6 +592,30 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
             ],
           ),
         ),
+
+        const SizedBox(height: AppDimensions.lg),
+
+        // Client selector (CRM integration)
+        _FormSection(
+          title: 'Cliente',
+          subtitle: 'Opcional - asignar un cliente del CRM',
+          child: _ClientSelector(
+            selectedClientId: _selectedClientId,
+            selectedClientName: _selectedClientName,
+            onSelected: (id, name) {
+              setState(() {
+                _selectedClientId = id;
+                _selectedClientName = name;
+              });
+            },
+            onClear: () {
+              setState(() {
+                _selectedClientId = null;
+                _selectedClientName = null;
+              });
+            },
+          ),
+        ),
       ],
     );
   }
@@ -567,7 +630,37 @@ class _AdminCreateActivityPageState extends State<AdminCreateActivityPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppDimensions.lg),
+        
         // Start date/time
+        _FormSection(
+          title: 'Fecha y hora de inicio',
+          required: true,
+          child: Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _DatePickerField(
+                  label: 'Fecha',
+                  date: _startDate,
+                  onTap: () => _pickDate(isStart: true),
+                ),
+              ),
+              const SizedBox(width: AppDimensions.md),
+              Expanded(
+                flex: 2,
+                child: _TimePickerField(
+                  label: 'Hora',
+                  time: _startTime,
+                  onTap: () => _pickTime(isStart: true),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppDimensions.lg),
+
+        // SLA
         _FormSection(
           title: 'SLA (Acuerdo de nivel de servicio)',
           subtitle: 'Opcional - tiempo máximo para completar',
@@ -1749,6 +1842,178 @@ class _AssigneeItem extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ClientSelector extends StatelessWidget {
+  final String? selectedClientId;
+  final String? selectedClientName;
+  final void Function(String id, String name) onSelected;
+  final VoidCallback onClear;
+
+  const _ClientSelector({
+    required this.selectedClientId,
+    required this.selectedClientName,
+    required this.onSelected,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (selectedClientId != null) {
+      return Container(
+        padding: const EdgeInsets.all(AppDimensions.md),
+        decoration: BoxDecoration(
+          color: AppColors.primarySurface.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppDimensions.sm),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+              ),
+              child: Icon(Icons.business_rounded, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: AppDimensions.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cliente asignado:',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                  ),
+                  Text(
+                    selectedClientName ?? '',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close_rounded, color: AppColors.textHint),
+              onPressed: onClear,
+              tooltip: 'Quitar cliente',
+            ),
+          ],
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: () => _showClientPicker(context),
+      icon: const Icon(Icons.person_add_alt_1_rounded),
+      label: const Text('Asignar Cliente'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppDimensions.md,
+          horizontal: AppDimensions.lg,
+        ),
+      ),
+    );
+  }
+
+  void _showClientPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusLg)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppDimensions.lg),
+                child: Row(
+                  children: [
+                    Icon(Icons.business_rounded, color: AppColors.primary),
+                    const SizedBox(width: AppDimensions.sm),
+                    Text(
+                      'Seleccionar Cliente',
+                      style: AppTextStyles.h3.copyWith(color: AppColors.textPrimary),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: StreamBuilder<List<CrmContact>>(
+                  stream: CrmService.instance.streamActiveClients(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final clients = snapshot.data ?? [];
+
+                    if (clients.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people_outline_rounded,
+                                size: 48, color: AppColors.textHint.withOpacity(0.5)),
+                            const SizedBox(height: AppDimensions.md),
+                            Text('No hay clientes activos en el CRM',
+                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: clients.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final client = clients[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primarySurface,
+                            child: Text(
+                              client.iniciales,
+                              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(client.nombreCompleto),
+                          subtitle: client.empresa != null
+                              ? Text(client.empresa!)
+                              : Text(client.email),
+                          onTap: () {
+                            onSelected(client.id, client.nombreCompleto);
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

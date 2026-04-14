@@ -603,8 +603,7 @@ class _TimelineHeader extends StatelessWidget {
       child: Column(
         children: [
           // Meses
-          SizedBox(
-            height: height / 2,
+          Expanded(
             child: Row(
               children: months.map((month) {
                 return Container(
@@ -628,8 +627,7 @@ class _TimelineHeader extends StatelessWidget {
           ),
 
           // Días
-          SizedBox(
-            height: height / 2,
+          Expanded(
             child: Row(
               children: List.generate(totalDays, (index) {
                 final date = startDate.add(Duration(days: index));
