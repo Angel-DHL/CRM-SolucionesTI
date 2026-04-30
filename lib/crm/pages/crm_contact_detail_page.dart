@@ -12,6 +12,7 @@ import '../models/crm_enums.dart';
 import '../services/crm_service.dart';
 import '../widgets/crm_status_chip.dart';
 import '../widgets/crm_activity_tile.dart';
+import 'crm_contact_form_page.dart';
 
 class CrmContactDetailPage extends StatelessWidget {
   final String contactId;
@@ -196,18 +197,23 @@ class _ContactDetailView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Contact header card
         _buildContactHeader(),
         const SizedBox(height: AppDimensions.lg),
-
-        // Status pipeline
         _buildStatusPipeline(),
         const SizedBox(height: AppDimensions.lg),
-
-        // Contact info
         _buildContactInfo(),
-
-        // Original message
+        if (contact.hasDatosFiscales) ...[
+          const SizedBox(height: AppDimensions.lg),
+          _buildFiscalInfo(),
+        ],
+        if (contact.hasDireccion) ...[
+          const SizedBox(height: AppDimensions.lg),
+          _buildDireccionInfo(),
+        ],
+        if (contact.valorEstimado != null || contact.prioridad != null) ...[
+          const SizedBox(height: AppDimensions.lg),
+          _buildComercialInfo(),
+        ],
         if (contact.mensaje != null && contact.mensaje!.isNotEmpty) ...[
           const SizedBox(height: AppDimensions.lg),
           _buildOriginalMessage(),
@@ -384,10 +390,7 @@ class _ContactDetailView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Información de contacto',
-            style: AppTextStyles.labelLarge.copyWith(color: AppColors.textPrimary),
-          ),
+          Text('Información de contacto', style: AppTextStyles.labelLarge.copyWith(color: AppColors.textPrimary)),
           const SizedBox(height: AppDimensions.md),
           _DetailRow(icon: Icons.email_rounded, label: 'Email', value: contact.email),
           _DetailRow(icon: Icons.phone_rounded, label: 'Teléfono', value: contact.telefono),
@@ -395,6 +398,10 @@ class _ContactDetailView extends StatelessWidget {
             _DetailRow(icon: Icons.business_rounded, label: 'Empresa', value: contact.empresa!),
           if (contact.cargo != null)
             _DetailRow(icon: Icons.work_rounded, label: 'Cargo', value: contact.cargo!),
+          if (contact.industria != null)
+            _DetailRow(icon: Icons.category_rounded, label: 'Industria', value: contact.industria!),
+          if (contact.tamanoEmpresa != null)
+            _DetailRow(icon: Icons.groups_rounded, label: 'Tamaño', value: contact.tamanoEmpresa!.label),
           if (contact.sitioWeb != null)
             _DetailRow(icon: Icons.language_rounded, label: 'Sitio web', value: contact.sitioWeb!),
           if (contact.interes != null)
@@ -404,6 +411,78 @@ class _ContactDetailView extends StatelessWidget {
             label: 'Registrado',
             value: '${contact.createdAt.day}/${contact.createdAt.month}/${contact.createdAt.year}',
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiscalInfo() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: AppColors.warning.withOpacity(0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.receipt_long_rounded, size: 18, color: AppColors.warning),
+            const SizedBox(width: AppDimensions.sm),
+            Text('Datos Fiscales', style: AppTextStyles.labelLarge.copyWith(color: AppColors.warning)),
+          ]),
+          const SizedBox(height: AppDimensions.md),
+          if (contact.rfc != null) _DetailRow(icon: Icons.badge_rounded, label: 'RFC', value: contact.rfc!),
+          if (contact.razonSocial != null) _DetailRow(icon: Icons.account_balance_rounded, label: 'Razón Social', value: contact.razonSocial!),
+          if (contact.regimenFiscal != null) _DetailRow(icon: Icons.gavel_rounded, label: 'Régimen Fiscal', value: contact.regimenFiscal!),
+          if (contact.usoCfdi != null) _DetailRow(icon: Icons.description_rounded, label: 'Uso CFDI', value: contact.usoCfdi!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDireccionInfo() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: AppColors.divider, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.location_on_rounded, size: 18, color: AppColors.primary),
+            const SizedBox(width: AppDimensions.sm),
+            Text('Dirección', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primary)),
+          ]),
+          const SizedBox(height: AppDimensions.md),
+          if (contact.direccionCompleta != null)
+            _DetailRow(icon: Icons.map_rounded, label: 'Dirección', value: contact.direccionCompleta!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComercialInfo() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: AppColors.divider, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Gestión Comercial', style: AppTextStyles.labelLarge.copyWith(color: AppColors.textPrimary)),
+          const SizedBox(height: AppDimensions.md),
+          if (contact.prioridad != null)
+            _DetailRow(icon: Icons.priority_high_rounded, label: 'Prioridad', value: '${contact.prioridad!.emoji} ${contact.prioridad!.label}'),
+          if (contact.valorEstimado != null)
+            _DetailRow(icon: Icons.attach_money_rounded, label: 'Valor estimado', value: '\$${contact.valorEstimado!.toStringAsFixed(2)}'),
         ],
       ),
     );
@@ -672,122 +751,11 @@ class _ContactDetailView extends StatelessWidget {
   }
 
   void _showEditDialog(BuildContext context) {
-    final nombreCtrl = TextEditingController(text: contact.nombre);
-    final apellidosCtrl = TextEditingController(text: contact.apellidos);
-    final emailCtrl = TextEditingController(text: contact.email);
-    final telefonoCtrl = TextEditingController(text: contact.telefono);
-    final empresaCtrl = TextEditingController(text: contact.empresa ?? '');
-    final interesCtrl = TextEditingController(text: contact.interes ?? '');
-    final formKey = GlobalKey<FormState>();
-    bool saving = false;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-              ),
-              title: const Text('Editar contacto'),
-              content: SizedBox(
-                width: 400,
-                child: Form(
-                  key: formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: nombreCtrl,
-                                decoration: const InputDecoration(labelText: 'Nombre *'),
-                                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
-                              ),
-                            ),
-                            const SizedBox(width: AppDimensions.md),
-                            Expanded(
-                              child: TextFormField(
-                                controller: apellidosCtrl,
-                                decoration: const InputDecoration(labelText: 'Apellidos'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: emailCtrl,
-                          decoration: const InputDecoration(labelText: 'Email *', prefixIcon: Icon(Icons.email_outlined)),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: telefonoCtrl,
-                          decoration: const InputDecoration(labelText: 'Teléfono', prefixIcon: Icon(Icons.phone_outlined)),
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: empresaCtrl,
-                          decoration: const InputDecoration(labelText: 'Empresa', prefixIcon: Icon(Icons.business_outlined)),
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: interesCtrl,
-                          decoration: const InputDecoration(labelText: 'Servicio de interés', prefixIcon: Icon(Icons.star_outline_rounded)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(ctx),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-                          setDialogState(() => saving = true);
-                          try {
-                            final updated = contact.copyWith(
-                              nombre: nombreCtrl.text.trim(),
-                              apellidos: apellidosCtrl.text.trim(),
-                              email: emailCtrl.text.trim(),
-                              telefono: telefonoCtrl.text.trim(),
-                              empresa: empresaCtrl.text.trim().isNotEmpty ? empresaCtrl.text.trim() : null,
-                              interes: interesCtrl.text.trim().isNotEmpty ? interesCtrl.text.trim() : null,
-                            );
-                            await CrmService.instance.updateContact(updated);
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('✅ Contacto actualizado'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: AppColors.success,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            setDialogState(() => saving = false);
-                          }
-                        },
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-                  child: saving
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Guardar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CrmContactFormPage(contact: contact),
+      ),
     );
   }
 

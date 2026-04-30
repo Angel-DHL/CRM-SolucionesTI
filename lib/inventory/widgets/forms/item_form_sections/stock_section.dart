@@ -85,7 +85,7 @@ class StockSection extends StatelessWidget {
                 child: TextFormField(
                   controller: minStockController,
                   decoration: InputDecoration(
-                    labelText: 'Stock mínimo *',
+                    labelText: 'Stock mínimo',
                     hintText: '5',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
@@ -96,12 +96,6 @@ class StockSection extends StatelessWidget {
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Requerido';
-                    }
-                    return null;
-                  },
                 ),
               ),
               const SizedBox(width: AppDimensions.md),

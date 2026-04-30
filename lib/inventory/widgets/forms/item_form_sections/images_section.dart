@@ -31,16 +31,13 @@ class _ImagesSectionState extends State<ImagesSection> {
   bool _isUploading = false;
 
   Future<void> _uploadPrimaryImage() async {
-    if (widget.itemId == null) {
-      _showSaveFirstMessage();
-      return;
-    }
+    final itemId = widget.itemId ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
     setState(() => _isUploading = true);
 
     try {
       final url = await _storageService.uploadItemImage(
-        widget.itemId!,
+        itemId,
         isPrimary: true,
       );
 
@@ -58,10 +55,7 @@ class _ImagesSectionState extends State<ImagesSection> {
   }
 
   Future<void> _uploadAdditionalImages() async {
-    if (widget.itemId == null) {
-      _showSaveFirstMessage();
-      return;
-    }
+    final itemId = widget.itemId ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
     if (widget.additionalImageUrls.length >= 4) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,7 +70,7 @@ class _ImagesSectionState extends State<ImagesSection> {
     setState(() => _isUploading = true);
 
     try {
-      final urls = await _storageService.uploadMultipleImages(widget.itemId!);
+      final urls = await _storageService.uploadMultipleImages(itemId);
 
       if (urls.isNotEmpty) {
         final totalAllowed = 4 - widget.additionalImageUrls.length;

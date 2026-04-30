@@ -294,8 +294,69 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
         key: _formKey,
         child: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
       ),
-      floatingActionButton: isMobile
-          ? FloatingActionButton.extended(
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppDimensions.md),
+      child: _buildAllSections(),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppDimensions.xl),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: _buildAllSections(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAllSections() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Información Básica
+        _buildBasicInfoSection(),
+        const SizedBox(height: AppDimensions.xl),
+        const Divider(),
+        const SizedBox(height: AppDimensions.xl),
+
+        // 2. Imágenes (ahora desde el principio)
+        _buildImagesSection(),
+        const SizedBox(height: AppDimensions.xl),
+        const Divider(),
+        const SizedBox(height: AppDimensions.xl),
+
+        // 3. Precios (opcionales)
+        _buildPricingSection(),
+        const SizedBox(height: AppDimensions.xl),
+        const Divider(),
+        const SizedBox(height: AppDimensions.xl),
+
+        // 4. Stock (opcional, no para servicios)
+        if (_selectedType != InventoryItemType.service) ...[
+          _buildStockSection(),
+          const SizedBox(height: AppDimensions.xl),
+          const Divider(),
+          const SizedBox(height: AppDimensions.xl),
+        ],
+
+        // 5. Detalles específicos del tipo
+        _buildTypeSpecificSection(),
+        const SizedBox(height: AppDimensions.xl),
+        
+        // Botón de guardar al final en móvil
+        if (Responsive.isMobile(context)) ...[
+          const SizedBox(height: AppDimensions.md),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: FilledButton.icon(
               onPressed: _isLoading ? null : _save,
               icon: _isLoading
                   ? const SizedBox(
@@ -308,97 +369,10 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
                     )
                   : const Icon(Icons.save_rounded),
               label: Text(_isLoading ? 'Guardando...' : 'Guardar'),
-            )
-          : null,
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return Stepper(
-      currentStep: _currentStep,
-      onStepContinue: () {
-        if (_currentStep < _getSteps().length - 1) {
-          setState(() => _currentStep++);
-        } else {
-          _save();
-        }
-      },
-      onStepCancel: () {
-        if (_currentStep > 0) {
-          setState(() => _currentStep--);
-        }
-      },
-      onStepTapped: (step) => setState(() => _currentStep = step),
-      steps: _getSteps(),
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return Row(
-      children: [
-        // Navigation
-        Container(
-          width: 250,
-          padding: const EdgeInsets.all(AppDimensions.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border(right: BorderSide(color: AppColors.divider)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Secciones',
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: AppColors.textHint,
-                ),
-              ),
-              const SizedBox(height: AppDimensions.md),
-              _NavItem(
-                icon: Icons.info_rounded,
-                label: 'Información básica',
-                isSelected: _currentStep == 0,
-                onTap: () => setState(() => _currentStep = 0),
-              ),
-              _NavItem(
-                icon: Icons.attach_money_rounded,
-                label: 'Precios',
-                isSelected: _currentStep == 1,
-                onTap: () => setState(() => _currentStep = 1),
-              ),
-              if (_selectedType != InventoryItemType.service)
-                _NavItem(
-                  icon: Icons.inventory_rounded,
-                  label: 'Stock',
-                  isSelected: _currentStep == 2,
-                  onTap: () => setState(() => _currentStep = 2),
-                ),
-              _NavItem(
-                icon: _selectedType.icon,
-                label: 'Detalles de ${_selectedType.label}',
-                isSelected: _currentStep == 3,
-                onTap: () => setState(() => _currentStep = 3),
-              ),
-              _NavItem(
-                icon: Icons.image_rounded,
-                label: 'Imágenes',
-                isSelected: _currentStep == 4,
-                onTap: () => setState(() => _currentStep = 4),
-              ),
-            ],
-          ),
-        ),
-
-        // Content
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppDimensions.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: _buildCurrentSection(),
             ),
           ),
-        ),
+          const SizedBox(height: AppDimensions.xl),
+        ],
       ],
     );
   }
@@ -610,8 +584,8 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
         barcode: _barcodeController.text.trim().isNotEmpty
             ? _barcodeController.text.trim()
             : null,
-        purchasePrice: double.parse(_purchasePriceController.text),
-        sellingPrice: double.parse(_sellingPriceController.text),
+        purchasePrice: double.tryParse(_purchasePriceController.text) ?? 0.0,
+        sellingPrice: double.tryParse(_sellingPriceController.text) ?? 0.0,
         rentalPrice: _rentalPriceController.text.isNotEmpty
             ? double.parse(_rentalPriceController.text)
             : null,
@@ -622,8 +596,8 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
         discount: _discountController.text.isNotEmpty
             ? double.parse(_discountController.text)
             : null,
-        stock: int.parse(_stockController.text),
-        minStock: int.parse(_minStockController.text),
+        stock: int.tryParse(_stockController.text) ?? 0,
+        minStock: int.tryParse(_minStockController.text) ?? 0,
         maxStock: _maxStockController.text.isNotEmpty
             ? int.parse(_maxStockController.text)
             : null,
@@ -687,14 +661,69 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isEditing ? 'Item actualizado' : 'Item creado'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-
       widget.onSaved?.call();
+
+      if (_isEditing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Item actualizado correctamente'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      } else {
+        // Preguntar si desea agregar otro producto
+        final addAnother = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+            ),
+            icon: Container(
+              padding: const EdgeInsets.all(AppDimensions.md),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.success,
+                size: 40,
+              ),
+            ),
+            title: const Text('¡Producto creado!'),
+            content: Text(
+              '\"${_nameController.text.trim()}\" se guardó exitosamente.\n\n¿Deseas agregar otro producto?',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('No, regresar'),
+              ),
+              const SizedBox(width: AppDimensions.sm),
+              FilledButton.icon(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Sí, agregar otro'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+
+        if (addAnother == true) {
+          _resetForm();
+        } else {
+          Navigator.of(context).pop();
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -703,6 +732,63 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _resetForm() {
+    // Limpiar todos los controllers
+    _nameController.clear();
+    _skuController.clear();
+    _descriptionController.clear();
+    _purchasePriceController.clear();
+    _sellingPriceController.clear();
+    _rentalPriceController.clear();
+    _taxRateController.clear();
+    _discountController.clear();
+    _stockController.text = '0';
+    _minStockController.text = '0';
+    _maxStockController.clear();
+    _reorderPointController.clear();
+    _brandController.clear();
+    _modelController.clear();
+    _manufacturerController.clear();
+    _serialNumberController.clear();
+    _barcodeController.clear();
+    _weightController.clear();
+    _lengthController.clear();
+    _widthController.clear();
+    _heightController.clear();
+    _batchNumberController.clear();
+    _depreciationRateController.clear();
+    _estimatedDurationController.clear();
+    _detailedDescriptionController.clear();
+
+    // Resetear estado
+    setState(() {
+      _selectedType = InventoryItemType.product;
+      _selectedUnit = UnitOfMeasure.unit;
+      _selectedCurrency = 'MXN';
+      // Mantener la categoría seleccionada para agilizar
+      _tags = [];
+      _trackInventory = true;
+      _allowBackorder = false;
+      _isActive = true;
+      _isFeatured = false;
+      _expirationDate = null;
+      _assetCondition = AssetCondition.new_;
+      _purchaseDate = null;
+      _warrantyExpiryDate = null;
+      _lastMaintenanceDate = null;
+      _nextMaintenanceDate = null;
+      _assignedToUserId = null;
+      _requiredSkills = [];
+      _isRecurring = false;
+      _primaryImageUrl = null;
+      _additionalImageUrls = [];
+      _savedItemId = null;
+    });
+
+    // Resetear validación del formulario
+    _formKey.currentState?.reset();
   }
 }
 

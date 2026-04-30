@@ -69,4 +69,17 @@ class FirebaseHelper {
   /// Logs de actividad del CRM (notas, llamadas, cambios de estatus)
   static CollectionReference<Map<String, dynamic>> get crmActivityLogs =>
       db.collection('crm_activity_logs');
+
+  // ═══════════════════════════════════════════════════════════
+  // COLECCIONES DE VENTAS
+  // ═══════════════════════════════════════════════════════════
+
+  static CollectionReference<Map<String, dynamic>> get salesQuotes =>
+      db.collection('sales_quotes');
+
+  static CollectionReference<Map<String, dynamic>> get salesOrders =>
+      db.collection('sales_orders');
+
+  static CollectionReference<Map<String, dynamic>> get salesCounters =>
+      db.collection('sales_counters');
 }

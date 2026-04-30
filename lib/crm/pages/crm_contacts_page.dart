@@ -12,6 +12,7 @@ import '../services/crm_service.dart';
 import '../widgets/crm_contact_card.dart';
 import '../widgets/crm_pipeline_board.dart';
 import 'crm_contact_detail_page.dart';
+import 'crm_contact_form_page.dart';
 
 enum _ViewMode { list, pipeline }
 
@@ -195,7 +196,10 @@ class _CrmContactsPageState extends State<CrmContactsPage> {
                 SizedBox(
                   height: 40,
                   child: FilledButton.icon(
-                    onPressed: () => _showCreateDialog(context),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CrmContactFormPage()),
+                    ),
                     icon: const Icon(Icons.person_add_rounded, size: 18),
                     label: const Text('Nuevo contacto'),
                     style: FilledButton.styleFrom(
@@ -322,40 +326,49 @@ class _CrmContactsPageState extends State<CrmContactsPage> {
   void _showStatusFilter(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusLg)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppDimensions.md),
-                child: Text('Filtrar por estatus', style: AppTextStyles.h4),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(AppDimensions.md),
+                    child: Text('Filtrar por estatus', style: AppTextStyles.h4),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.all_inclusive_rounded),
+                    title: const Text('Todos'),
+                    selected: _statusFilter == null,
+                    onTap: () {
+                      setState(() => _statusFilter = null);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ...ContactStatus.values.map((s) {
+                    return ListTile(
+                      leading: Text(s.emoji, style: const TextStyle(fontSize: 20)),
+                      title: Text(s.label),
+                      selected: _statusFilter == s,
+                      onTap: () {
+                        setState(() => _statusFilter = s);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: AppDimensions.md),
+                ],
               ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.all_inclusive_rounded),
-                title: const Text('Todos'),
-                selected: _statusFilter == null,
-                onTap: () {
-                  setState(() => _statusFilter = null);
-                  Navigator.pop(context);
-                },
-              ),
-              ...ContactStatus.values.map((s) {
-                return ListTile(
-                  leading: Text(s.emoji, style: const TextStyle(fontSize: 20)),
-                  title: Text(s.label),
-                  selected: _statusFilter == s,
-                  onTap: () {
-                    setState(() => _statusFilter = s);
-                    Navigator.pop(context);
-                  },
-                );
-              }),
-            ],
+            ),
           ),
         );
       },
@@ -365,205 +378,56 @@ class _CrmContactsPageState extends State<CrmContactsPage> {
   void _showSourceFilter(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusLg)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppDimensions.md),
-                child: Text('Filtrar por fuente', style: AppTextStyles.h4),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(AppDimensions.md),
+                    child: Text('Filtrar por fuente', style: AppTextStyles.h4),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.all_inclusive_rounded),
+                    title: const Text('Todas'),
+                    selected: _sourceFilter == null,
+                    onTap: () {
+                      setState(() => _sourceFilter = null);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ...ContactSource.values.map((s) {
+                    return ListTile(
+                      title: Text(s.label),
+                      selected: _sourceFilter == s,
+                      onTap: () {
+                        setState(() => _sourceFilter = s);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: AppDimensions.md),
+                ],
               ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.all_inclusive_rounded),
-                title: const Text('Todas'),
-                selected: _sourceFilter == null,
-                onTap: () {
-                  setState(() => _sourceFilter = null);
-                  Navigator.pop(context);
-                },
-              ),
-              ...ContactSource.values.map((s) {
-                return ListTile(
-                  title: Text(s.label),
-                  selected: _sourceFilter == s,
-                  onTap: () {
-                    setState(() => _sourceFilter = s);
-                    Navigator.pop(context);
-                  },
-                );
-              }),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  void _showCreateDialog(BuildContext context) {
-    final nombreCtrl = TextEditingController();
-    final apellidosCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final telefonoCtrl = TextEditingController();
-    final empresaCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool saving = false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-              ),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(AppDimensions.sm),
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-                    ),
-                    child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: AppDimensions.md),
-                  const Text('Nuevo contacto'),
-                ],
-              ),
-              content: SizedBox(
-                width: 400,
-                child: Form(
-                  key: formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: nombreCtrl,
-                                decoration: const InputDecoration(labelText: 'Nombre *'),
-                                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
-                              ),
-                            ),
-                            const SizedBox(width: AppDimensions.md),
-                            Expanded(
-                              child: TextFormField(
-                                controller: apellidosCtrl,
-                                decoration: const InputDecoration(labelText: 'Apellidos'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: emailCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Email *',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: telefonoCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Teléfono',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                          ),
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: AppDimensions.md),
-                        TextFormField(
-                          controller: empresaCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Empresa',
-                            prefixIcon: Icon(Icons.business_outlined),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving ? null : () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-                          setDialogState(() => saving = true);
-
-                          try {
-                            final contact = CrmContact(
-                              id: '',
-                              status: ContactStatus.prospecto,
-                              source: ContactSource.otro,
-                              nombre: nombreCtrl.text.trim(),
-                              apellidos: apellidosCtrl.text.trim(),
-                              email: emailCtrl.text.trim(),
-                              telefono: telefonoCtrl.text.trim(),
-                              empresa: empresaCtrl.text.trim().isNotEmpty
-                                  ? empresaCtrl.text.trim()
-                                  : null,
-                              createdAt: DateTime.now(),
-                              updatedAt: DateTime.now(),
-                              createdBy: '',
-                            );
-
-                            await CrmService.instance.createContact(contact);
-
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('✅ Contacto creado'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: AppColors.success,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            setDialogState(() => saving = false);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: $e'),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-                  child: saving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Crear'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // HELPER WIDGETS

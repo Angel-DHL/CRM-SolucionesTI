@@ -7,10 +7,9 @@ import '../../core/theme/app_text_styles.dart';
 import '../models/crm_contact.dart';
 import '../models/crm_enums.dart';
 import '../services/crm_service.dart';
-import 'crm_contact_card.dart';
 
-/// Vista Kanban del pipeline CRM con columnas por estatus
-class CrmPipelineBoard extends StatelessWidget {
+/// Vista Kanban del pipeline CRM con Drag & Drop
+class CrmPipelineBoard extends StatefulWidget {
   final List<CrmContact> contacts;
   final ValueChanged<CrmContact>? onContactTap;
 
@@ -28,6 +27,50 @@ class CrmPipelineBoard extends StatelessWidget {
   ];
 
   @override
+  State<CrmPipelineBoard> createState() => _CrmPipelineBoardState();
+}
+
+class _CrmPipelineBoardState extends State<CrmPipelineBoard> {
+  ContactStatus? _draggingOverStatus;
+
+  Color _headerColor(ContactStatus status) => switch (status) {
+    ContactStatus.lead => AppColors.info,
+    ContactStatus.prospecto => AppColors.warning,
+    ContactStatus.clientePotencial => const Color(0xFFE67E22),
+    ContactStatus.cliente => AppColors.success,
+    ContactStatus.inactivo => AppColors.textHint,
+  };
+
+  void _onStatusChange(CrmContact contact, ContactStatus newStatus) async {
+    if (contact.status == newStatus) return;
+
+    try {
+      await CrmService.instance.updateStatus(contact.id, newStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${contact.nombreCompleto} movido a ${newStatus.label}',
+            ),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -41,8 +84,8 @@ class CrmPipelineBoard extends StatelessWidget {
           padding: const EdgeInsets.all(AppDimensions.md),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: _pipelineStatuses.map((status) {
-              final columnContacts = contacts
+            children: CrmPipelineBoard._pipelineStatuses.map((status) {
+              final columnContacts = widget.contacts
                   .where((c) => c.status == status)
                   .toList();
 
@@ -52,9 +95,14 @@ class CrmPipelineBoard extends StatelessWidget {
                 child: _PipelineColumn(
                   status: status,
                   contacts: columnContacts,
-                  onContactTap: onContactTap,
-                  onStatusChange: (contact, newStatus) {
-                    CrmService.instance.updateStatus(contact.id, newStatus);
+                  headerColor: _headerColor(status),
+                  isDragOver: _draggingOverStatus == status,
+                  onContactTap: widget.onContactTap,
+                  onStatusChange: _onStatusChange,
+                  onDragOverChanged: (isOver) {
+                    setState(() {
+                      _draggingOverStatus = isOver ? status : null;
+                    });
                   },
                 ),
               );
@@ -66,134 +114,328 @@ class CrmPipelineBoard extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// PIPELINE COLUMN — DragTarget
+// ═══════════════════════════════════════════════════════════
+
 class _PipelineColumn extends StatelessWidget {
   final ContactStatus status;
   final List<CrmContact> contacts;
+  final Color headerColor;
+  final bool isDragOver;
   final ValueChanged<CrmContact>? onContactTap;
-  final void Function(CrmContact contact, ContactStatus newStatus)? onStatusChange;
+  final void Function(CrmContact contact, ContactStatus newStatus) onStatusChange;
+  final ValueChanged<bool> onDragOverChanged;
 
   const _PipelineColumn({
     required this.status,
     required this.contacts,
+    required this.headerColor,
+    required this.isDragOver,
     this.onContactTap,
-    this.onStatusChange,
+    required this.onStatusChange,
+    required this.onDragOverChanged,
   });
-
-  Color get _headerColor => switch (status) {
-    ContactStatus.lead => AppColors.info,
-    ContactStatus.prospecto => AppColors.warning,
-    ContactStatus.clientePotencial => const Color(0xFFE67E22),
-    ContactStatus.cliente => AppColors.success,
-    ContactStatus.inactivo => AppColors.textHint,
-  };
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-        border: Border.all(color: AppColors.divider, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(AppDimensions.md),
-            decoration: BoxDecoration(
-              color: _headerColor.withOpacity(0.08),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppDimensions.radiusMd),
-              ),
-              border: Border(
-                bottom: BorderSide(color: _headerColor.withOpacity(0.2), width: 2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _headerColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: AppDimensions.sm),
-                Expanded(
-                  child: Text(
-                    status.label,
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: _headerColor,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _headerColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                  ),
-                  child: Text(
-                    '${contacts.length}',
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: _headerColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    return DragTarget<CrmContact>(
+      onWillAcceptWithDetails: (details) {
+        final contact = details.data;
+        if (contact.status == status) return false;
+        onDragOverChanged(true);
+        return true;
+      },
+      onLeave: (_) => onDragOverChanged(false),
+      onAcceptWithDetails: (details) {
+        onDragOverChanged(false);
+        onStatusChange(details.data, status);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isAccepting = candidateData.isNotEmpty;
 
-          // Cards
-          if (contacts.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(AppDimensions.lg),
-              child: Center(
-                child: Text(
-                  'Sin contactos',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textHint,
-                    fontStyle: FontStyle.italic,
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: isAccepting
+                ? headerColor.withOpacity(0.06)
+                : AppColors.background,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            border: Border.all(
+              color: isAccepting
+                  ? headerColor.withOpacity(0.5)
+                  : AppColors.divider,
+              width: isAccepting ? 2.0 : 1.0,
+            ),
+            boxShadow: isAccepting
+                ? [
+                    BoxShadow(
+                      color: headerColor.withOpacity(0.15),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ═══ HEADER ═══
+              Container(
+                padding: const EdgeInsets.all(AppDimensions.md),
+                decoration: BoxDecoration(
+                  color: headerColor.withOpacity(0.08),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppDimensions.radiusMd),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: headerColor.withOpacity(0.2),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: headerColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: AppDimensions.sm),
+                    Expanded(
+                      child: Text(
+                        status.label,
+                        style: AppTextStyles.labelLarge.copyWith(
+                          color: headerColor,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: headerColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusFull,
+                        ),
+                      ),
+                      child: Text(
+                        '${contacts.length}',
+                        style: AppTextStyles.labelMedium.copyWith(
+                          color: headerColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ═══ DROP ZONE INDICATOR ═══
+              if (isAccepting)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppDimensions.sm,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.move_down_rounded,
+                        size: 16,
+                        color: headerColor.withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Soltar aquí',
+                        style: AppTextStyles.caption.copyWith(
+                          color: headerColor.withOpacity(0.7),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // ═══ CARDS ═══
+              if (contacts.isEmpty && !isAccepting)
+                Padding(
+                  padding: const EdgeInsets.all(AppDimensions.lg),
+                  child: Center(
+                    child: Text(
+                      'Sin contactos',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textHint,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(AppDimensions.sm),
+                  itemCount: contacts.length,
+                  itemBuilder: (context, index) {
+                    final contact = contacts[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: AppDimensions.sm,
+                      ),
+                      child: _DraggablePipelineCard(
+                        contact: contact,
+                        headerColor: headerColor,
+                        onTap: () => onContactTap?.call(contact),
+                        onAdvance: status.canAdvance &&
+                                status.nextStatus != null
+                            ? () => onStatusChange(
+                                contact,
+                                status.nextStatus!,
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAGGABLE PIPELINE CARD
+// ═══════════════════════════════════════════════════════════
+
+class _DraggablePipelineCard extends StatelessWidget {
+  final CrmContact contact;
+  final Color headerColor;
+  final VoidCallback? onTap;
+  final VoidCallback? onAdvance;
+
+  const _DraggablePipelineCard({
+    required this.contact,
+    required this.headerColor,
+    this.onTap,
+    this.onAdvance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LongPressDraggable<CrmContact>(
+      data: contact,
+      delay: const Duration(milliseconds: 150),
+      hapticFeedbackOnStart: true,
+      // ═══ FEEDBACK MIENTRAS ARRASTRA ═══
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        shadowColor: headerColor.withOpacity(0.4),
+        child: Container(
+          width: 260,
+          padding: const EdgeInsets.all(AppDimensions.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            border: Border.all(color: headerColor.withOpacity(0.5), width: 2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: AppColors.accentGradient,
+                  borderRadius: BorderRadius.circular(
+                    AppDimensions.radiusSm,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    contact.iniciales,
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppDimensions.sm),
-              itemCount: contacts.length,
-              itemBuilder: (context, index) {
-                final contact = contacts[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppDimensions.sm),
-                  child: _PipelineCard(
-                    contact: contact,
-                    onTap: () => onContactTap?.call(contact),
-                    onAdvance: status.canAdvance && status.nextStatus != null
-                        ? () => onStatusChange?.call(contact, status.nextStatus!)
-                        : null,
-                  ),
-                );
-              },
-            ),
-        ],
+              const SizedBox(width: AppDimensions.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      contact.nombreCompleto,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (contact.empresa != null)
+                      Text(
+                        contact.empresa!,
+                        style: AppTextStyles.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.drag_indicator_rounded,
+                color: headerColor.withOpacity(0.6),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+      // ═══ PLACEHOLDER CUANDO SE ARRASTRA ═══
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: _PipelineCardContent(
+          contact: contact,
+          onTap: null,
+          onAdvance: null,
+        ),
+      ),
+      // ═══ CARD NORMAL ═══
+      child: _PipelineCardContent(
+        contact: contact,
+        onTap: onTap,
+        onAdvance: onAdvance,
       ),
     );
   }
 }
 
-class _PipelineCard extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════
+// PIPELINE CARD CONTENT
+// ═══════════════════════════════════════════════════════════
+
+class _PipelineCardContent extends StatelessWidget {
   final CrmContact contact;
   final VoidCallback? onTap;
   final VoidCallback? onAdvance;
 
-  const _PipelineCard({
+  const _PipelineCardContent({
     required this.contact,
     this.onTap,
     this.onAdvance,
@@ -220,7 +462,9 @@ class _PipelineCard extends StatelessWidget {
                     height: 32,
                     decoration: BoxDecoration(
                       gradient: AppColors.accentGradient,
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.radiusSm,
+                      ),
                     ),
                     child: Center(
                       child: Text(
@@ -256,6 +500,12 @@ class _PipelineCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Drag hint icon
+                  Icon(
+                    Icons.drag_indicator_rounded,
+                    size: 16,
+                    color: AppColors.textHint.withOpacity(0.4),
+                  ),
                 ],
               ),
 
@@ -263,7 +513,11 @@ class _PipelineCard extends StatelessWidget {
                 const SizedBox(height: AppDimensions.sm),
                 Row(
                   children: [
-                    Icon(Icons.email_outlined, size: 12, color: AppColors.textHint),
+                    Icon(
+                      Icons.email_outlined,
+                      size: 12,
+                      color: AppColors.textHint,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -275,6 +529,61 @@ class _PipelineCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
+                ),
+              ],
+
+              // Priority & value badges
+              if (contact.prioridad != null || contact.valorEstimado != null) ...[
+                const SizedBox(height: AppDimensions.sm),
+                Row(
+                  children: [
+                    if (contact.prioridad != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Color(contact.prioridad!.colorValue)
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusFull,
+                          ),
+                        ),
+                        child: Text(
+                          '${contact.prioridad!.emoji} ${contact.prioridad!.label}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Color(contact.prioridad!.colorValue),
+                          ),
+                        ),
+                      ),
+                    if (contact.prioridad != null &&
+                        contact.valorEstimado != null)
+                      const SizedBox(width: 4),
+                    if (contact.valorEstimado != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusFull,
+                          ),
+                        ),
+                        child: Text(
+                          '\$${contact.valorEstimado!.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -294,10 +603,14 @@ class _PipelineCard extends StatelessWidget {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                      side: BorderSide(
+                        color: AppColors.primary.withOpacity(0.3),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusSm,
+                        ),
                       ),
                     ),
                   ),

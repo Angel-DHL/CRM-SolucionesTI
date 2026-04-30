@@ -1,10 +1,14 @@
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import '../core/services/role_service.dart';
+import '../core/firebase_helper.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_dimensions.dart';
@@ -22,12 +26,20 @@ class CreateUserPage extends StatefulWidget {
 class _CreateUserPageState extends State<CreateUserPage>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  
+  final _firstNameFocus = FocusNode();
+  final _lastNameFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
-  UserRole _role = UserRole.soporteTecnico;
+  Uint8List? _imageBytes;
+  String? _photoUrl;
+
+  UserRole? _role;
   bool _loading = false;
   bool _obscurePassword = true;
   String? _result;
@@ -80,8 +92,12 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   @override
   void dispose() {
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _firstNameFocus.dispose();
+    _lastNameFocus.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     _fadeController.dispose();
@@ -120,14 +136,50 @@ class _CreateUserPageState extends State<CreateUserPage>
 
   void _resetForm() {
     _formKey.currentState?.reset();
+    _firstNameCtrl.clear();
+    _lastNameCtrl.clear();
     _emailCtrl.clear();
     _passwordCtrl.clear();
     setState(() {
-      _role = UserRole.soporteTecnico;
+      _role = null;
       _result = null;
       _error = null;
       _createdUserData = null;
+      _imageBytes = null;
+      _photoUrl = null;
     });
+  }
+
+  Future<void> _pickImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+    if (result != null && result.files.first.bytes != null) {
+      setState(() {
+        _imageBytes = result.files.first.bytes;
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(String email) async {
+    if (_imageBytes == null) return null;
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('${email}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      
+      final uploadTask = ref.putData(
+        _imageBytes!,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('Error al subir imagen: $e');
+      return null;
+    }
   }
 
   Future<void> _create() async {
@@ -146,13 +198,23 @@ class _CreateUserPageState extends State<CreateUserPage>
       return;
     }
 
+    if (_role == null) {
+      setState(() => _error = 'Por favor selecciona un rol para el usuario');
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final idToken = await user.getIdToken(true);
 
       final email = _emailCtrl.text.trim().toLowerCase();
       final password = _passwordCtrl.text;
-      final roleClaim = _role.claim;
+      final roleClaim = _role!.claim;
+      final firstName = _firstNameCtrl.text.trim();
+      final lastName = _lastNameCtrl.text.trim();
+
+      // Subir imagen primero si existe
+      _photoUrl = await _uploadImage(email);
 
       if (kDebugMode) {
         debugPrint('POST -> $_endpoint');
@@ -169,6 +231,9 @@ class _CreateUserPageState extends State<CreateUserPage>
           'email': email,
           'password': password,
           'role': roleClaim,
+          'firstName': firstName,
+          'lastName': lastName,
+          'photoURL': _photoUrl,
         }),
       );
 
@@ -391,6 +456,14 @@ class _CreateUserPageState extends State<CreateUserPage>
                 ],
               ],
 
+              // Foto de Perfil
+              _AnimatedFormField(delay: 50, child: _buildImageSelector()),
+              const SizedBox(height: AppDimensions.lg),
+
+              // Nombre y Apellido
+              _AnimatedFormField(delay: 75, child: _buildNameFields()),
+              const SizedBox(height: AppDimensions.lg),
+
               // Campo de email
               _AnimatedFormField(delay: 100, child: _buildEmailField()),
               const SizedBox(height: AppDimensions.lg),
@@ -556,10 +629,131 @@ class _CreateUserPageState extends State<CreateUserPage>
           ),
         ),
         const SizedBox(height: AppDimensions.sm),
-        _RoleSelector(
-          selectedRole: _role,
-          enabled: !_loading,
-          onChanged: (role) => setState(() => _role = role),
+        StreamBuilder<List<UserRole>>(
+          stream: RoleService.rolesStream,
+          builder: (context, snapshot) {
+            final roles = snapshot.data ?? [];
+            if (roles.isEmpty) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LinearProgressIndicator();
+              }
+              return Text(
+                'No hay roles definidos. Ve a Gestión de Roles.',
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+              );
+            }
+            
+            // Inicializar _role si es nulo
+            if (_role == null && roles.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _role == null) {
+                  setState(() => _role = roles.first);
+                }
+              });
+            }
+
+            final currentRole = roles.any((r) => r.id == _role?.id) 
+                ? roles.firstWhere((r) => r.id == _role?.id) 
+                : roles.first;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.divider),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<UserRole>(
+                  value: currentRole,
+                  isExpanded: true,
+                  items: roles.map((r) => DropdownMenuItem(
+                    value: r,
+                    child: Text(r.label),
+                  )).toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _role = v);
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageSelector() {
+    return Center(
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: AppColors.primarySurface,
+            backgroundImage: _imageBytes != null ? MemoryImage(_imageBytes!) : null,
+            child: _imageBytes == null
+                ? Icon(Icons.person_outline_rounded, size: 40, color: AppColors.primary)
+                : null,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameFields() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nombre(s)', style: AppTextStyles.labelLarge),
+              const SizedBox(height: AppDimensions.sm),
+              TextFormField(
+                controller: _firstNameCtrl,
+                focusNode: _firstNameFocus,
+                textInputAction: TextInputAction.next,
+                enabled: !_loading,
+                decoration: const InputDecoration(hintText: 'Ej: Juan'),
+                validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                onFieldSubmitted: (_) => _lastNameFocus.requestFocus(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppDimensions.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Apellido(s)', style: AppTextStyles.labelLarge),
+              const SizedBox(height: AppDimensions.sm),
+              TextFormField(
+                controller: _lastNameCtrl,
+                focusNode: _lastNameFocus,
+                textInputAction: TextInputAction.next,
+                enabled: !_loading,
+                decoration: const InputDecoration(hintText: 'Ej: Pérez'),
+                validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                onFieldSubmitted: (_) => _emailFocus.requestFocus(),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -682,12 +876,12 @@ class _CreateUserPageState extends State<CreateUserPage>
                       vertical: AppDimensions.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: _getRoleColor(_role).withOpacity(0.1),
+                      color: _getRoleColor(_role ?? UserRole.soporteTecnico).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(
                         AppDimensions.radiusFull,
                       ),
                       border: Border.all(
-                        color: _getRoleColor(_role).withOpacity(0.3),
+                        color: _getRoleColor(_role ?? UserRole.soporteTecnico).withOpacity(0.3),
                         width: 1,
                       ),
                     ),
@@ -695,15 +889,15 @@ class _CreateUserPageState extends State<CreateUserPage>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _getRoleIcon(_role),
+                          _getRoleIcon(_role ?? UserRole.soporteTecnico),
                           size: 14,
-                          color: _getRoleColor(_role),
+                          color: _getRoleColor(_role ?? UserRole.soporteTecnico),
                         ),
                         const SizedBox(width: AppDimensions.xs),
                         Text(
-                          _role.label,
+                          _role?.label ?? 'Selecciona un rol',
                           style: AppTextStyles.labelMedium.copyWith(
-                            color: _getRoleColor(_role),
+                            color: _getRoleColor(_role ?? UserRole.soporteTecnico),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -778,25 +972,15 @@ class _CreateUserPageState extends State<CreateUserPage>
   }
 
   Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return AppColors.error;
-      case UserRole.soporteSistemas:
-        return AppColors.success;
-      case UserRole.soporteTecnico:
-        return AppColors.info;
-    }
+    if (role.id == 'admin') return AppColors.error;
+    if (role.id == 'soporte_sistemas') return AppColors.success;
+    return AppColors.info;
   }
 
   IconData _getRoleIcon(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return Icons.admin_panel_settings_rounded;
-      case UserRole.soporteSistemas:
-        return Icons.point_of_sale_rounded;
-      case UserRole.soporteTecnico:
-        return Icons.support_agent_rounded;
-    }
+    if (role.id == 'admin') return Icons.admin_panel_settings_rounded;
+    if (role.id == 'soporte_sistemas') return Icons.point_of_sale_rounded;
+    return Icons.support_agent_rounded;
   }
 }
 
@@ -889,139 +1073,6 @@ class _PasswordStrengthIndicator extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// WIDGET: Role Selector
-// ══════════════════════════════════════════════════════════════
-
-class _RoleSelector extends StatelessWidget {
-  final UserRole selectedRole;
-  final bool enabled;
-  final ValueChanged<UserRole> onChanged;
-
-  const _RoleSelector({
-    required this.selectedRole,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isMobile = Responsive.isMobile(context);
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isMobile ? 2 : 4,
-        crossAxisSpacing: AppDimensions.sm,
-        mainAxisSpacing: AppDimensions.sm,
-        childAspectRatio: isMobile ? 2.2 : 2.5,
-      ),
-      itemCount: UserRole.values.length,
-      itemBuilder: (context, index) {
-        final role = UserRole.values[index];
-        final isSelected = role == selectedRole;
-
-        return _RoleCard(
-          role: role,
-          isSelected: isSelected,
-          enabled: enabled,
-          onTap: () => onChanged(role),
-        );
-      },
-    );
-  }
-}
-
-class _RoleCard extends StatelessWidget {
-  final UserRole role;
-  final bool isSelected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  const _RoleCard({
-    required this.role,
-    required this.isSelected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _getColor();
-
-    return AnimatedContainer(
-      duration: AppDimensions.animFast,
-      decoration: BoxDecoration(
-        color: isSelected ? color.withOpacity(0.1) : AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-        border: Border.all(
-          color: isSelected ? color : AppColors.border,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimensions.sm,
-              vertical: AppDimensions.sm,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _getIcon(),
-                  color: isSelected ? color : AppColors.textHint,
-                  size: 20,
-                ),
-                const SizedBox(width: AppDimensions.xs),
-                Expanded(
-                  child: Text(
-                    role.label,
-                    style: AppTextStyles.labelMedium.copyWith(
-                      color: isSelected ? color : AppColors.textSecondary,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isSelected)
-                  Icon(Icons.check_circle_rounded, color: color, size: 18),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getColor() {
-    switch (role) {
-      case UserRole.admin:
-        return AppColors.error;
-      case UserRole.soporteSistemas:
-        return AppColors.success;
-      case UserRole.soporteTecnico:
-        return AppColors.info;
-    }
-  }
-
-  IconData _getIcon() {
-    switch (role) {
-      case UserRole.admin:
-        return Icons.admin_panel_settings_rounded;
-      case UserRole.soporteSistemas:
-        return Icons.point_of_sale_rounded;
-      case UserRole.soporteTecnico:
-        return Icons.support_agent_rounded;
-    }
-  }
-}
 
 // ══════════════════════════════════════════════════════════════
 // WIDGET: Animated Banner

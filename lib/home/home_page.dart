@@ -1,5 +1,6 @@
 import 'package:crm_solucionesti/crm/pages/crm_home_page.dart';
 import 'package:crm_solucionesti/inventory/pages/inventory_home_page.dart';
+import 'package:crm_solucionesti/ventas/pages/ventas_home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
@@ -9,7 +10,13 @@ import '../core/theme/responsive.dart';
 import '../core/role.dart';
 import '../core/role_access.dart';
 import '../admin/create_user_page.dart';
+import '../admin/user_management_page.dart';
+import '../admin/role_management_page.dart';
+import '../home/profile_settings_page.dart';
 import '../operatividad/pages/operatividad_page.dart';
+import '../core/services/role_service.dart';
+import '../core/firebase_helper.dart';
+import 'dart:async';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,6 +31,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String? _error;
   String _searchQuery = '';
   int _selectedIndex = 0;
+  bool _isSidebarCollapsed = false;
+  
+  // Datos del dashboard
+  int _activeActivities = 0;
+  int _inventoryCount = 0;
+  int _leadsCount = 0;
+  bool _statsLoading = true;
 
   late AnimationController _statsController;
   late AnimationController _modulesController;
@@ -72,6 +86,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) {
         _statsController.forward();
         _modulesController.forward();
+        _loadDashboardStats();
+        
+        // Sembrar roles iniciales si es necesario
+        if (_role?.id == 'admin') {
+          RoleService.seedInitialRoles();
+        }
       }
     } catch (_) {
       setState(
@@ -79,6 +99,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       );
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadDashboardStats() async {
+    try {
+      final activities = await FirebaseHelper.operActivities.count().get();
+      final inventory = await FirebaseHelper.inventoryItems.count().get();
+      final leads = await FirebaseHelper.leads.count().get();
+
+      if (mounted) {
+        setState(() {
+          _activeActivities = activities.count ?? 0;
+          _inventoryCount = inventory.count ?? 0;
+          _leadsCount = leads.count ?? 0;
+          _statsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando stats: $e');
     }
   }
 
@@ -146,82 +185,77 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final modules = _getFilteredModules();
     final user = FirebaseAuth.instance.currentUser;
 
-    // Layout responsivo
-    if (isDesktop || isTablet) {
-      return _DesktopLayout(
-        role: role,
-        modules: modules,
-        user: user,
-        selectedIndex: _selectedIndex,
-        onItemSelected: (index) => setState(() => _selectedIndex = index),
-        onSearchChanged: (query) => setState(() => _searchQuery = query),
-        onModuleTap: _navigateToModule,
-        onCreateUser: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const CreateUserPage())),
-        onLogout: _logout,
-        onRefresh: _loadRole,
-        statsController: _statsController,
-        modulesController: _modulesController,
-      );
-    }
-
-    return _MobileLayout(
+    return _MainScaffold(
       role: role,
       modules: modules,
       user: user,
       selectedIndex: _selectedIndex,
-      onItemSelected: (index) => setState(() => _selectedIndex = index),
+      isSidebarCollapsed: _isSidebarCollapsed,
+      onToggleSidebar: () => setState(() => _isSidebarCollapsed = !_isSidebarCollapsed),
+      onItemSelected: (index) {
+        // Si es un módulo, navegar directamente
+        if (index >= 1 && index <= modules.length) {
+          _navigateToModule(modules[index - 1]);
+          return;
+        }
+
+        if (index == modules.length + 2) {
+           Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileSettingsPage()));
+           return;
+        }
+        setState(() => _selectedIndex = index);
+      },
       onSearchChanged: (query) => setState(() => _searchQuery = query),
       onModuleTap: _navigateToModule,
-      onCreateUser: () => Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const CreateUserPage())),
+      onCreateUser: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CreateUserPage()),
+      ),
       onLogout: _logout,
-      onRefresh: _loadRole,
+      onRefresh: () {
+        _loadRole();
+        _loadDashboardStats();
+      },
       statsController: _statsController,
       modulesController: _modulesController,
+      activeActivities: _activeActivities,
+      inventoryCount: _inventoryCount,
+      leadsCount: _leadsCount,
+      statsLoading: _statsLoading,
     );
   }
 
   void _navigateToModule(AppModule module) {
+    // Resetear al Dashboard para que al regresar no se re-navegue
+    setState(() => _selectedIndex = 0);
+    
     switch (module) {
       case AppModule.operatividad:
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const OperatividadPage()));
-        break;
-      case AppModule.inventario:
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const InventoryHomePage()));
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OperatividadPage()));
         break;
       case AppModule.crm:
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const CrmHomePage()));
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CrmHomePage()));
         break;
-      // Agregar más módulos aquí
+      case AppModule.inventario:
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InventoryHomePage()));
+        break;
+      case AppModule.ventas:
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VentasHomePage()));
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Módulo ${module.title} en desarrollo'),
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('Módulo ${module.title} en desarrollo')),
         );
     }
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// LAYOUT DESKTOP/TABLET
-// ══════════════════════════════════════════════════════════════
-
-class _DesktopLayout extends StatelessWidget {
+class _MainScaffold extends StatelessWidget {
   final UserRole role;
   final List<AppModule> modules;
   final User? user;
   final int selectedIndex;
+  final bool isSidebarCollapsed;
+  final VoidCallback onToggleSidebar;
   final ValueChanged<int> onItemSelected;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<AppModule> onModuleTap;
@@ -230,12 +264,19 @@ class _DesktopLayout extends StatelessWidget {
   final VoidCallback onRefresh;
   final AnimationController statsController;
   final AnimationController modulesController;
+  
+  final int activeActivities;
+  final int inventoryCount;
+  final int leadsCount;
+  final bool statsLoading;
 
-  const _DesktopLayout({
+  const _MainScaffold({
     required this.role,
     required this.modules,
     required this.user,
     required this.selectedIndex,
+    required this.isSidebarCollapsed,
+    required this.onToggleSidebar,
     required this.onItemSelected,
     required this.onSearchChanged,
     required this.onModuleTap,
@@ -244,209 +285,176 @@ class _DesktopLayout extends StatelessWidget {
     required this.onRefresh,
     required this.statsController,
     required this.modulesController,
+    required this.activeActivities,
+    required this.inventoryCount,
+    required this.leadsCount,
+    required this.statsLoading,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
+    final isTablet = Responsive.isTablet(context);
 
-    return Scaffold(
-      body: Row(
-        children: [
-          // Sidebar
-          _Sidebar(
-            role: role,
-            selectedIndex: selectedIndex,
-            onItemSelected: onItemSelected,
-            onLogout: onLogout,
-            user: user,
-            isCollapsed: !isDesktop,
-          ),
+    Widget content;
+    if (selectedIndex == 0) {
+      content = _DashboardView(
+        role: role,
+        controller: statsController,
+        activeActivities: activeActivities,
+        inventoryCount: inventoryCount,
+        leadsCount: leadsCount,
+        loading: statsLoading,
+      );
+    } else if (selectedIndex <= modules.length) {
+      // Los módulos se abren directamente via Navigator.push,
+      // así que mostramos el Dashboard como vista base.
+      content = _DashboardView(
+        role: role,
+        controller: statsController,
+        activeActivities: activeActivities,
+        inventoryCount: inventoryCount,
+        leadsCount: leadsCount,
+        loading: statsLoading,
+      );
+      // Auto-navegar al módulo
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        onModuleTap(modules[selectedIndex - 1]);
+      });
+    } else if (selectedIndex == modules.length + 1) {
+      content = const UserManagementPage();
+    } else {
+      content = const Center(child: Text('Vista no encontrada'));
+    }
 
-          // Contenido principal
-          Expanded(
-            child: Container(
-              color: AppColors.background,
-              child: SafeArea(
-                left: false,
-                child: Column(
-                  children: [
-                    // Header
-                    _Header(
-                      role: role,
-                      user: user,
-                      onSearchChanged: onSearchChanged,
-                      onRefresh: onRefresh,
-                      onCreateUser: role == UserRole.admin
-                          ? onCreateUser
-                          : null,
-                    ),
-
-                    // Dashboard content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: EdgeInsets.all(
-                          isDesktop ? AppDimensions.xl : AppDimensions.lg,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: AppDimensions.maxContentWidth,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Stats Dashboard
-                              _DashboardStats(
-                                controller: statsController,
-                                role: role,
-                              ),
-
-                              SizedBox(height: AppDimensions.xl),
-
-                              // Módulos
-                              _ModulesSection(
-                                modules: modules,
-                                controller: modulesController,
-                                onModuleTap: onModuleTap,
-                                role: role,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    if (isDesktop || isTablet) {
+      return Scaffold(
+        body: Row(
+          children: [
+            _Sidebar(
+              role: role,
+              modules: modules,
+              selectedIndex: selectedIndex,
+              onItemSelected: onItemSelected,
+              onLogout: onLogout,
+              user: user,
+              isCollapsed: isSidebarCollapsed,
+              onToggleCollapse: onToggleSidebar,
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  _Header(
+                    role: role,
+                    user: user,
+                    onSearchChanged: onSearchChanged,
+                    onRefresh: onRefresh,
+                  ),
+                  Expanded(child: content),
+                ],
               ),
             ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      drawer: _MobileDrawer(
+        role: role,
+        user: user,
+        selectedIndex: selectedIndex,
+        onItemSelected: onItemSelected,
+        onLogout: onLogout,
+        modules: modules,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _MobileHeader(
+              onMenuPressed: () => Scaffold.of(context).openDrawer(),
+              onSearchChanged: onSearchChanged,
+              onRefresh: onRefresh,
+            ),
+            Expanded(child: content),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _MobileBottomNav(
+        selectedIndex: selectedIndex,
+        onItemSelected: onItemSelected,
+        modulesCount: modules.length,
+      ),
+    );
+  }
+}
+
+class _DashboardView extends StatelessWidget {
+  final UserRole role;
+  final AnimationController controller;
+  final int activeActivities;
+  final int inventoryCount;
+  final int leadsCount;
+  final bool loading;
+
+  const _DashboardView({
+    required this.role,
+    required this.controller,
+    required this.activeActivities,
+    required this.inventoryCount,
+    required this.leadsCount,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppDimensions.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _WelcomeCard(role: role, user: FirebaseAuth.instance.currentUser),
+          const SizedBox(height: AppDimensions.xl),
+          _DashboardStats(
+            controller: controller,
+            role: role,
+            activeActivities: activeActivities,
+            inventoryCount: inventoryCount,
+            leadsCount: leadsCount,
+            loading: loading,
           ),
+          // Aquí podrías agregar una sección de "Actividades Recientes" con datos reales
         ],
       ),
     );
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// LAYOUT MOBILE
-// ══════════════════════════════════════════════════════════════
-
-class _MobileLayout extends StatefulWidget {
-  final UserRole role;
+class _ModulesView extends StatelessWidget {
   final List<AppModule> modules;
-  final User? user;
-  final int selectedIndex;
-  final ValueChanged<int> onItemSelected;
-  final ValueChanged<String> onSearchChanged;
+  final AnimationController controller;
   final ValueChanged<AppModule> onModuleTap;
-  final VoidCallback onCreateUser;
-  final VoidCallback onLogout;
-  final VoidCallback onRefresh;
-  final AnimationController statsController;
-  final AnimationController modulesController;
 
-  const _MobileLayout({
-    required this.role,
+  const _ModulesView({
     required this.modules,
-    required this.user,
-    required this.selectedIndex,
-    required this.onItemSelected,
-    required this.onSearchChanged,
+    required this.controller,
     required this.onModuleTap,
-    required this.onCreateUser,
-    required this.onLogout,
-    required this.onRefresh,
-    required this.statsController,
-    required this.modulesController,
   });
 
   @override
-  State<_MobileLayout> createState() => _MobileLayoutState();
-}
-
-class _MobileLayoutState extends State<_MobileLayout> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: _MobileDrawer(
-        role: widget.role,
-        user: widget.user,
-        selectedIndex: widget.selectedIndex,
-        onItemSelected: (index) {
-          widget.onItemSelected(index);
-          Navigator.pop(context);
-        },
-        onLogout: widget.onLogout,
-      ),
-      floatingActionButton: widget.role == UserRole.admin
-          ? FloatingActionButton.extended(
-              onPressed: widget.onCreateUser,
-              icon: const Icon(Icons.person_add),
-              label: const Text('Crear usuario'),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            )
-          : null,
-      body: Container(
-        color: AppColors.background,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header móvil
-              _MobileHeader(
-                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                onSearchChanged: widget.onSearchChanged,
-                onRefresh: widget.onRefresh,
-              ),
-
-              // Contenido
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.all(AppDimensions.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Welcome card
-                      _WelcomeCard(role: widget.role, user: widget.user),
-
-                      SizedBox(height: AppDimensions.lg),
-
-                      // Stats
-                      _DashboardStats(
-                        controller: widget.statsController,
-                        role: widget.role,
-                        isMobile: true,
-                      ),
-
-                      SizedBox(height: AppDimensions.lg),
-
-                      // Módulos
-                      _ModulesSection(
-                        modules: widget.modules,
-                        controller: widget.modulesController,
-                        onModuleTap: widget.onModuleTap,
-                        role: widget.role,
-                        isMobile: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _MobileBottomNav(
-        selectedIndex: widget.selectedIndex,
-        onItemSelected: widget.onItemSelected,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppDimensions.xl),
+      child: _ModulesSection(
+        modules: modules,
+        controller: controller,
+        onModuleTap: onModuleTap,
+        role: UserRole.admin, // Solo para la lógica de visualización
       ),
     );
   }
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // WIDGETS: SIDEBAR & NAVIGATION
@@ -454,19 +462,23 @@ class _MobileLayoutState extends State<_MobileLayout> {
 
 class _Sidebar extends StatelessWidget {
   final UserRole role;
+  final List<AppModule> modules;
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback onLogout;
   final User? user;
   final bool isCollapsed;
+  final VoidCallback onToggleCollapse;
 
   const _Sidebar({
     required this.role,
+    required this.modules,
     required this.selectedIndex,
     required this.onItemSelected,
     required this.onLogout,
     required this.user,
     this.isCollapsed = false,
+    required this.onToggleCollapse,
   });
 
   @override
@@ -545,9 +557,23 @@ class _Sidebar extends StatelessWidget {
                           ],
                         ),
                       ),
+                      IconButton(
+                        onPressed: onToggleCollapse,
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        color: AppColors.textHint,
+                        tooltip: 'Compactar menú',
+                      ),
                     ],
                   ),
           ),
+
+          if (isCollapsed)
+            IconButton(
+              onPressed: onToggleCollapse,
+              icon: const Icon(Icons.chevron_right_rounded),
+              color: AppColors.textHint,
+              tooltip: 'Expandir menú',
+            ),
 
           const Divider(height: 1),
 
@@ -566,14 +592,35 @@ class _Sidebar extends StatelessWidget {
                   onTap: () => onItemSelected(0),
                   isCollapsed: isCollapsed,
                 ),
-                _NavItem(
-                  icon: Icons.apps_rounded,
-                  label: 'Módulos',
-                  isSelected: selectedIndex == 1,
-                  onTap: () => onItemSelected(1),
-                  isCollapsed: isCollapsed,
-                ),
-                if (role == UserRole.admin) ...[
+                
+                const SizedBox(height: AppDimensions.md),
+                if (!isCollapsed)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppDimensions.md,
+                      vertical: AppDimensions.xs,
+                    ),
+                    child: Text(
+                      'MÓDULOS',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                  ),
+                
+                // Render each module
+                ...List.generate(modules.length, (index) {
+                  final module = modules[index];
+                  return _NavItem(
+                    icon: _getModuleIcon(module),
+                    label: module.title,
+                    isSelected: selectedIndex == index + 1,
+                    onTap: () => onItemSelected(index + 1),
+                    isCollapsed: isCollapsed,
+                  );
+                }),
+
+                if (role.id == 'admin') ...[
                   const SizedBox(height: AppDimensions.md),
                   if (!isCollapsed)
                     Padding(
@@ -591,8 +638,8 @@ class _Sidebar extends StatelessWidget {
                   _NavItem(
                     icon: Icons.people_rounded,
                     label: 'Usuarios',
-                    isSelected: selectedIndex == 2,
-                    onTap: () => onItemSelected(2),
+                    isSelected: selectedIndex == modules.length + 1,
+                    onTap: () => onItemSelected(modules.length + 1),
                     isCollapsed: isCollapsed,
                   ),
                 ],
@@ -600,8 +647,8 @@ class _Sidebar extends StatelessWidget {
                 _NavItem(
                   icon: Icons.settings_rounded,
                   label: 'Configuración',
-                  isSelected: selectedIndex == 3,
-                  onTap: () => onItemSelected(3),
+                  isSelected: selectedIndex == modules.length + 2,
+                  onTap: () => onItemSelected(modules.length + 2),
                   isCollapsed: isCollapsed,
                 ),
               ],
@@ -885,13 +932,6 @@ class _Header extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
 
-              IconButton(
-                onPressed: () {},
-                icon: const Badge(child: Icon(Icons.notifications_outlined)),
-                tooltip: 'Notificaciones',
-                color: AppColors.textSecondary,
-              ),
-
               const SizedBox(width: AppDimensions.sm),
 
               // Profile quick access
@@ -918,16 +958,24 @@ class _DashboardStats extends StatelessWidget {
   final AnimationController controller;
   final UserRole role;
   final bool isMobile;
+  final int activeActivities;
+  final int inventoryCount;
+  final int leadsCount;
+  final bool loading;
 
   const _DashboardStats({
     required this.controller,
     required this.role,
     this.isMobile = false,
+    required this.activeActivities,
+    required this.inventoryCount,
+    required this.leadsCount,
+    required this.loading,
   });
 
   @override
   Widget build(BuildContext context) {
-    final stats = _getStatsForRole(role);
+    final stats = _getStats();
 
     return FadeTransition(
       opacity: controller,
@@ -941,7 +989,7 @@ class _DashboardStats extends StatelessWidget {
           children: [
             if (!isMobile) ...[
               Text(
-                'Resumen general',
+                'Resumen en tiempo real',
                 style: AppTextStyles.h2.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -963,7 +1011,7 @@ class _DashboardStats extends StatelessWidget {
                 final stat = stats[index];
                 return _StatCard(
                   title: stat.title,
-                  value: stat.value,
+                  value: loading ? '...' : stat.value,
                   icon: stat.icon,
                   color: stat.color,
                   trend: stat.trend,
@@ -977,36 +1025,28 @@ class _DashboardStats extends StatelessWidget {
     );
   }
 
-  List<_StatData> _getStatsForRole(UserRole role) {
-    // Aquí conectarías con datos reales
+  List<_StatData> _getStats() {
     return [
       _StatData(
-        title: 'Proyectos activos',
-        value: '12',
-        icon: Icons.folder_open_rounded,
+        title: 'Actividades',
+        value: activeActivities.toString(),
+        icon: Icons.assignment_rounded,
         color: AppColors.primary,
-        trend: '+3 esta semana',
+        trend: 'Operatividad',
       ),
       _StatData(
-        title: 'Tickets pendientes',
-        value: '8',
-        icon: Icons.support_agent_rounded,
-        color: AppColors.warning,
-        trend: '-2 hoy',
-      ),
-      _StatData(
-        title: 'Ventas del mes',
-        value: '\$24.5K',
-        icon: Icons.point_of_sale_rounded,
+        title: 'Productos',
+        value: inventoryCount.toString(),
+        icon: Icons.inventory_2_rounded,
         color: AppColors.success,
-        trend: '+15% vs mes anterior',
+        trend: 'Inventario',
       ),
       _StatData(
-        title: 'Tareas por hacer',
-        value: '23',
-        icon: Icons.check_circle_outline_rounded,
-        color: AppColors.info,
-        trend: '5 urgentes',
+        title: 'Leads',
+        value: leadsCount.toString(),
+        icon: Icons.people_alt_rounded,
+        color: AppColors.warning,
+        trend: 'CRM',
       ),
     ];
   }
@@ -1267,6 +1307,8 @@ class _ModulesSection extends StatelessWidget {
         return Icons.people_alt_rounded;
       case AppModule.inventario:
         return Icons.inventory_2_rounded;
+      case AppModule.ventas:
+        return Icons.point_of_sale_rounded;
       case AppModule.marketing:
         return Icons.campaign_rounded;
       case AppModule.soporte:
@@ -1609,6 +1651,7 @@ class _MobileDrawer extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback onLogout;
+  final List<AppModule> modules;
 
   const _MobileDrawer({
     required this.role,
@@ -1616,6 +1659,7 @@ class _MobileDrawer extends StatelessWidget {
     required this.selectedIndex,
     required this.onItemSelected,
     required this.onLogout,
+    required this.modules,
   });
 
   @override
@@ -1625,49 +1669,7 @@ class _MobileDrawer extends StatelessWidget {
         color: AppColors.surface,
         child: Column(
           children: [
-            // Header
-            Container(
-              padding: EdgeInsets.all(AppDimensions.lg),
-              decoration: BoxDecoration(gradient: AppColors.primaryGradient),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(
-                          AppDimensions.radiusLg,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.admin_panel_settings_rounded,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.md),
-                    Text(
-                      'CRM Soluciones TI',
-                      style: AppTextStyles.h2.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      user?.email ?? '',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Navigation
+            _DrawerHeader(user: user, role: role),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.symmetric(vertical: AppDimensions.md),
@@ -1676,26 +1678,63 @@ class _MobileDrawer extends StatelessWidget {
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',
                     isSelected: selectedIndex == 0,
-                    onTap: () => onItemSelected(0),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onItemSelected(0);
+                    },
                   ),
-                  _DrawerItem(
-                    icon: Icons.apps_rounded,
-                    label: 'Módulos',
-                    isSelected: selectedIndex == 1,
-                    onTap: () => onItemSelected(1),
+                  
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      'MÓDULOS',
+                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.textHint),
+                    ),
                   ),
-                  if (role == UserRole.admin)
+                  
+                  ...List.generate(modules.length, (index) {
+                    final module = modules[index];
+                    return _DrawerItem(
+                      icon: _getModuleIcon(module),
+                      label: module.title,
+                      isSelected: selectedIndex == index + 1,
+                      onTap: () {
+                        Navigator.pop(context);
+                        onItemSelected(index + 1);
+                      },
+                    );
+                  }),
+
+                  if (role.id == 'admin') ...[
+                    const Divider(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text(
+                        'ADMINISTRACIÓN',
+                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.textHint),
+                      ),
+                    ),
                     _DrawerItem(
                       icon: Icons.people_rounded,
                       label: 'Usuarios',
-                      isSelected: selectedIndex == 2,
-                      onTap: () => onItemSelected(2),
+                      isSelected: selectedIndex == modules.length + 1,
+                      onTap: () {
+                        Navigator.pop(context);
+                        onItemSelected(modules.length + 1);
+                      },
                     ),
+                  ],
+                  
+                  const Divider(),
                   _DrawerItem(
                     icon: Icons.settings_rounded,
                     label: 'Configuración',
-                    isSelected: selectedIndex == 3,
-                    onTap: () => onItemSelected(3),
+                    isSelected: selectedIndex == modules.length + 2,
+                    onTap: () {
+                      Navigator.pop(context);
+                      onItemSelected(modules.length + 2);
+                    },
                   ),
                 ],
               ),
@@ -1712,6 +1751,55 @@ class _MobileDrawer extends StatelessWidget {
                   foregroundColor: AppColors.error,
                   side: BorderSide(color: AppColors.error.withOpacity(0.5)),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DrawerHeader extends StatelessWidget {
+  final User? user;
+  final UserRole role;
+
+  const _DrawerHeader({required this.user, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(AppDimensions.lg),
+      decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+              ),
+              child: const Icon(
+                Icons.admin_panel_settings_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.md),
+            Text(
+              'CRM Soluciones TI',
+              style: AppTextStyles.h2.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              user?.email ?? '',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: Colors.white.withOpacity(0.9),
               ),
             ),
           ],
@@ -1761,17 +1849,27 @@ class _DrawerItem extends StatelessWidget {
 class _MobileBottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
+  final int modulesCount;
 
   const _MobileBottomNav({
     required this.selectedIndex,
     required this.onItemSelected,
+    required this.modulesCount,
   });
 
   @override
   Widget build(BuildContext context) {
     return NavigationBar(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onItemSelected,
+      selectedIndex: selectedIndex == 0 ? 0 : (selectedIndex == modulesCount + 2 ? 2 : 1),
+      onDestinationSelected: (index) {
+        if (index == 0) onItemSelected(0);
+        else if (index == 2) onItemSelected(modulesCount + 2);
+        else {
+          // If they click the middle item, we could open the drawer or something,
+          // but for now let's just go to the first module or keep it as is.
+          Scaffold.of(context).openDrawer();
+        }
+      },
       destinations: const [
         NavigationDestination(
           icon: Icon(Icons.dashboard_outlined),
@@ -1779,8 +1877,7 @@ class _MobileBottomNav extends StatelessWidget {
           label: 'Inicio',
         ),
         NavigationDestination(
-          icon: Icon(Icons.apps_outlined),
-          selectedIcon: Icon(Icons.apps_rounded),
+          icon: Icon(Icons.menu_rounded),
           label: 'Módulos',
         ),
         NavigationDestination(
@@ -1790,6 +1887,27 @@ class _MobileBottomNav extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+IconData _getModuleIcon(AppModule module) {
+  switch (module) {
+    case AppModule.operatividad:
+      return Icons.assignment_rounded;
+    case AppModule.crm:
+      return Icons.people_alt_rounded;
+    case AppModule.inventario:
+      return Icons.inventory_2_rounded;
+    case AppModule.ventas:
+      return Icons.point_of_sale_rounded;
+    case AppModule.marketing:
+      return Icons.campaign_rounded;
+    case AppModule.soporte:
+      return Icons.support_agent_rounded;
+    case AppModule.proyectos:
+      return Icons.account_tree_rounded;
+    default:
+      return Icons.apps_rounded;
   }
 }
 

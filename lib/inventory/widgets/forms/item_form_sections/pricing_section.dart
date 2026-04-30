@@ -71,7 +71,7 @@ class PricingSection extends StatelessWidget {
               child: TextFormField(
                 controller: purchasePriceController,
                 decoration: InputDecoration(
-                  labelText: 'Precio de compra *',
+                  labelText: 'Precio de compra',
                   prefixText: '\$ ',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
@@ -84,12 +84,11 @@ class PricingSection extends StatelessWidget {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Requerido';
-                  }
-                  final price = double.tryParse(value);
-                  if (price == null || price < 0) {
-                    return 'Precio inválido';
+                  if (value != null && value.isNotEmpty) {
+                    final price = double.tryParse(value);
+                    if (price == null || price < 0) {
+                      return 'Precio inválido';
+                    }
                   }
                   return null;
                 },
@@ -100,7 +99,7 @@ class PricingSection extends StatelessWidget {
               child: TextFormField(
                 controller: sellingPriceController,
                 decoration: InputDecoration(
-                  labelText: 'Precio de venta *',
+                  labelText: 'Precio de venta',
                   prefixText: '\$ ',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
@@ -113,12 +112,11 @@ class PricingSection extends StatelessWidget {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Requerido';
-                  }
-                  final price = double.tryParse(value);
-                  if (price == null || price < 0) {
-                    return 'Precio inválido';
+                  if (value != null && value.isNotEmpty) {
+                    final price = double.tryParse(value);
+                    if (price == null || price < 0) {
+                      return 'Precio inválido';
+                    }
                   }
                   return null;
                 },

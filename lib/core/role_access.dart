@@ -4,12 +4,15 @@ enum AppModule {
   operatividad,
   crm,
   inventario,
+  ventas,
   marketing,
   soporte,
   proyectos,
 }
 
 extension AppModuleX on AppModule {
+  String get id => name.toLowerCase();
+
   String get title {
     switch (this) {
       case AppModule.operatividad:
@@ -18,6 +21,8 @@ extension AppModuleX on AppModule {
         return 'CRM';
       case AppModule.inventario:
         return 'Inventario';
+      case AppModule.ventas:
+        return 'Ventas';
       case AppModule.marketing:
         return 'Marketing';
       case AppModule.soporte:
@@ -33,25 +38,27 @@ class RoleAccess {
     AppModule.operatividad,
     AppModule.crm,
     AppModule.inventario,
+    AppModule.ventas,
     AppModule.marketing,
     AppModule.soporte,
     AppModule.proyectos,
   ];
 
+  /// Verifica si el rol tiene acceso (al menos lectura) al módulo
   static bool canAccess(UserRole role, AppModule module) {
-    switch (role) {
-      case UserRole.admin:
-        return true;
+    final permission = role.permissions[module.name.toLowerCase()] ??
+        role.permissions[module.id] ??
+        PermissionLevel.none;
+    return permission != PermissionLevel.none;
+  }
 
-      case UserRole.soporteTecnico:
-        return module == AppModule.soporte || module == AppModule.operatividad;
-
-      case UserRole.soporteSistemas:
-        return module == AppModule.soporte ||
-            module == AppModule.proyectos ||
-            module == AppModule.inventario ||
-            module == AppModule.crm ||
-            module == AppModule.operatividad;
-    }
+  /// Verifica si el rol tiene un nivel específico de permiso
+  static bool hasPermission(
+    UserRole role,
+    AppModule module,
+    PermissionLevel required,
+  ) {
+    final level = role.permissions[module.id] ?? PermissionLevel.none;
+    return level.index >= required.index;
   }
 }
