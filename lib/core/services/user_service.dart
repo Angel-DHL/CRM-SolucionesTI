@@ -1,9 +1,20 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../firebase_helper.dart';
 
 class UserService {
   static final CollectionReference<Map<String, dynamic>> _usersCol =
       FirebaseHelper.db.collection('users');
+
+  static const String _region = 'us-central1';
+  static const String _projectId = 'crm-solucionesti';
+  static const String _functionName = 'setUserRole';
+
+  static Uri get _endpoint => Uri.parse(
+    'https://$_region-$_projectId.cloudfunctions.net/$_functionName',
+  );
 
   /// Obtiene todos los usuarios
   static Stream<List<Map<String, dynamic>>> get usersStream {
@@ -12,11 +23,34 @@ class UserService {
     });
   }
 
-  /// Actualiza el rol de un usuario
+  /// Actualiza el rol de un usuario tanto en Firestore como en Auth (via Cloud Function)
   static Future<void> updateRole(String uid, String newRole) async {
-    // Nota: Esto solo actualiza Firestore. Para actualizar Custom Claims 
-    // se requiere una Cloud Function o Admin SDK.
-    await _usersCol.doc(uid).update({'role': newRole});
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
+
+    final idToken = await user.getIdToken(true);
+
+    try {
+      final resp = await http.post(
+        _endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'role': newRole,
+        }),
+      );
+
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        final errorData = jsonDecode(resp.body);
+        throw Exception(errorData['error'] ?? 'Error HTTP ${resp.statusCode}');
+      }
+    } catch (e) {
+      print('Error al actualizar rol: $e');
+      rethrow;
+    }
   }
 
   /// Desactiva un usuario

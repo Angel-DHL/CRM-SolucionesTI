@@ -174,3 +174,129 @@ extension PaymentMethodX on PaymentMethod {
     _ => PaymentMethod.otro,
   };
 }
+
+// ═══════════════════════════════════════════════════════════
+// OPORTUNIDADES DE VENTA
+// ═══════════════════════════════════════════════════════════
+
+/// Estado de la oportunidad en el pipeline comercial
+enum OpportunityStatus {
+  nueva,
+  calificada,
+  propuesta,
+  negociacion,
+  ganada,
+  perdida,
+}
+
+extension OpportunityStatusX on OpportunityStatus {
+  String get value => name;
+
+  String get label => switch (this) {
+    OpportunityStatus.nueva => 'Nueva',
+    OpportunityStatus.calificada => 'Calificada',
+    OpportunityStatus.propuesta => 'Propuesta',
+    OpportunityStatus.negociacion => 'Negociación',
+    OpportunityStatus.ganada => 'Ganada',
+    OpportunityStatus.perdida => 'Perdida',
+  };
+
+  String get emoji => switch (this) {
+    OpportunityStatus.nueva => '🌱',
+    OpportunityStatus.calificada => '🎯',
+    OpportunityStatus.propuesta => '📋',
+    OpportunityStatus.negociacion => '🤝',
+    OpportunityStatus.ganada => '🏆',
+    OpportunityStatus.perdida => '❌',
+  };
+
+  int get colorValue => switch (this) {
+    OpportunityStatus.nueva => 0xFF42A5F5,
+    OpportunityStatus.calificada => 0xFFFFA726,
+    OpportunityStatus.propuesta => 0xFF7E57C2,
+    OpportunityStatus.negociacion => 0xFF26C6DA,
+    OpportunityStatus.ganada => 0xFF66BB6A,
+    OpportunityStatus.perdida => 0xFFEF5350,
+  };
+
+  int get pipelineOrder => switch (this) {
+    OpportunityStatus.nueva => 0,
+    OpportunityStatus.calificada => 1,
+    OpportunityStatus.propuesta => 2,
+    OpportunityStatus.negociacion => 3,
+    OpportunityStatus.ganada => 4,
+    OpportunityStatus.perdida => 5,
+  };
+
+  bool get isActive =>
+      this != OpportunityStatus.ganada && this != OpportunityStatus.perdida;
+
+  bool get canAdvance => switch (this) {
+    OpportunityStatus.nueva => true,
+    OpportunityStatus.calificada => true,
+    OpportunityStatus.propuesta => true,
+    OpportunityStatus.negociacion => true,
+    _ => false,
+  };
+
+  OpportunityStatus? get nextStatus => switch (this) {
+    OpportunityStatus.nueva => OpportunityStatus.calificada,
+    OpportunityStatus.calificada => OpportunityStatus.propuesta,
+    OpportunityStatus.propuesta => OpportunityStatus.negociacion,
+    OpportunityStatus.negociacion => OpportunityStatus.ganada,
+    _ => null,
+  };
+
+  static OpportunityStatus from(String? v) => switch (v) {
+    'nueva' => OpportunityStatus.nueva,
+    'calificada' => OpportunityStatus.calificada,
+    'propuesta' => OpportunityStatus.propuesta,
+    'negociacion' => OpportunityStatus.negociacion,
+    'ganada' => OpportunityStatus.ganada,
+    'perdida' => OpportunityStatus.perdida,
+    _ => OpportunityStatus.nueva,
+  };
+}
+
+/// Fuente de la oportunidad
+enum OpportunitySource {
+  formularioWeb,
+  llamada,
+  referido,
+  redSocial,
+  evento,
+  email,
+  otro,
+}
+
+extension OpportunitySourceX on OpportunitySource {
+  String get value => switch (this) {
+    OpportunitySource.formularioWeb => 'formulario_web',
+    OpportunitySource.llamada => 'llamada',
+    OpportunitySource.referido => 'referido',
+    OpportunitySource.redSocial => 'red_social',
+    OpportunitySource.evento => 'evento',
+    OpportunitySource.email => 'email',
+    OpportunitySource.otro => 'otro',
+  };
+
+  String get label => switch (this) {
+    OpportunitySource.formularioWeb => 'Formulario Web',
+    OpportunitySource.llamada => 'Llamada',
+    OpportunitySource.referido => 'Referido',
+    OpportunitySource.redSocial => 'Red Social',
+    OpportunitySource.evento => 'Evento',
+    OpportunitySource.email => 'Email',
+    OpportunitySource.otro => 'Otro',
+  };
+
+  static OpportunitySource from(String? v) => switch (v) {
+    'formulario_web' => OpportunitySource.formularioWeb,
+    'llamada' => OpportunitySource.llamada,
+    'referido' => OpportunitySource.referido,
+    'red_social' => OpportunitySource.redSocial,
+    'evento' => OpportunitySource.evento,
+    'email' => OpportunitySource.email,
+    _ => OpportunitySource.otro,
+  };
+}

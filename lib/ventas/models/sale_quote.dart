@@ -88,6 +88,7 @@ class SaleQuote {
   final String? clienteRfc;
   final String? clienteRazonSocial;
   final String? clienteEmpresa;
+  final String? clienteDireccion;
 
   // Líneas de la cotización
   final List<SaleQuoteItem> items;
@@ -110,6 +111,12 @@ class SaleQuote {
 
   // Trazabilidad
   final String? ordenId; // Si ya se convirtió a orden
+  final String? opportunityId; // Vinculación con oportunidad
+  final int version; // Versión de la cotización
+
+  // Email
+  final DateTime? emailEnviadoAt;
+  final String? emailEnviadoA;
 
   // Auditoría
   final DateTime createdAt;
@@ -125,6 +132,7 @@ class SaleQuote {
     required this.clienteNombre,
     this.clienteEmail, this.clienteTelefono,
     this.clienteRfc, this.clienteRazonSocial, this.clienteEmpresa,
+    this.clienteDireccion,
     required this.items,
     required this.subtotal,
     this.descuentoGlobal = 0,
@@ -137,6 +145,10 @@ class SaleQuote {
     this.fechaExpiracion,
     this.condicionesPago, this.notas, this.notasInternas,
     this.ordenId,
+    this.opportunityId,
+    this.version = 1,
+    this.emailEnviadoAt,
+    this.emailEnviadoA,
     required this.createdAt,
     required this.updatedAt,
     required this.createdBy,
@@ -149,6 +161,15 @@ class SaleQuote {
   bool get isExpired => fechaExpiracion != null && fechaExpiracion!.isBefore(DateTime.now());
   bool get canEdit => status.canEdit;
   bool get canConvert => status.canConvert && !isExpired;
+  bool get hasBeenEmailed => emailEnviadoAt != null;
+
+  /// Días restantes de vigencia
+  int get diasRestantes {
+    if (fechaExpiracion == null) return vigenciaDias;
+    return fechaExpiracion!.difference(DateTime.now()).inDays;
+  }
+
+  bool get porVencer => diasRestantes <= 3 && diasRestantes > 0 && status == QuoteStatus.enviada;
 
   /// Recalcula totales desde los items
   static Map<String, double> calcTotals(List<SaleQuoteItem> items, double descuentoGlobal, double ivaPorcentaje) {
@@ -172,6 +193,11 @@ class SaleQuote {
       if (t is Timestamp) return t.toDate().toLocal();
       return DateTime.now();
     }
+    DateTime? parseTsNull(dynamic t) {
+      if (t == null) return null;
+      if (t is Timestamp) return t.toDate().toLocal();
+      return null;
+    }
 
     final itemsList = (d['items'] as List<dynamic>?)
         ?.map((i) => SaleQuoteItem.fromMap(i as Map<String, dynamic>))
@@ -188,6 +214,7 @@ class SaleQuote {
       clienteRfc: d['clienteRfc'],
       clienteRazonSocial: d['clienteRazonSocial'],
       clienteEmpresa: d['clienteEmpresa'],
+      clienteDireccion: d['clienteDireccion'],
       items: itemsList,
       subtotal: (d['subtotal'] ?? 0).toDouble(),
       descuentoGlobal: (d['descuentoGlobal'] ?? 0).toDouble(),
@@ -197,11 +224,15 @@ class SaleQuote {
       total: (d['total'] ?? 0).toDouble(),
       moneda: d['moneda'] ?? 'MXN',
       vigenciaDias: d['vigenciaDias'] ?? 15,
-      fechaExpiracion: parseTs(d['fechaExpiracion']),
+      fechaExpiracion: parseTsNull(d['fechaExpiracion']),
       condicionesPago: d['condicionesPago'],
       notas: d['notas'],
       notasInternas: d['notasInternas'],
       ordenId: d['ordenId'],
+      opportunityId: d['opportunityId'],
+      version: d['version'] ?? 1,
+      emailEnviadoAt: parseTsNull(d['emailEnviadoAt']),
+      emailEnviadoA: d['emailEnviadoA'],
       createdAt: parseTs(d['createdAt']),
       updatedAt: parseTs(d['updatedAt']),
       createdBy: d['createdBy'] ?? '',
@@ -219,6 +250,7 @@ class SaleQuote {
     'clienteRfc': clienteRfc,
     'clienteRazonSocial': clienteRazonSocial,
     'clienteEmpresa': clienteEmpresa,
+    'clienteDireccion': clienteDireccion,
     'items': items.map((i) => i.toMap()).toList(),
     'subtotal': subtotal,
     'descuentoGlobal': descuentoGlobal,
@@ -233,6 +265,10 @@ class SaleQuote {
     'notas': notas,
     'notasInternas': notasInternas,
     'ordenId': ordenId,
+    'opportunityId': opportunityId,
+    'version': version,
+    'emailEnviadoAt': emailEnviadoAt != null ? Timestamp.fromDate(emailEnviadoAt!) : null,
+    'emailEnviadoA': emailEnviadoA,
     'createdAt': FieldValue.serverTimestamp(),
     'updatedAt': FieldValue.serverTimestamp(),
     'createdBy': createdBy,
@@ -248,6 +284,7 @@ class SaleQuote {
     'clienteRfc': clienteRfc,
     'clienteRazonSocial': clienteRazonSocial,
     'clienteEmpresa': clienteEmpresa,
+    'clienteDireccion': clienteDireccion,
     'items': items.map((i) => i.toMap()).toList(),
     'subtotal': subtotal,
     'descuentoGlobal': descuentoGlobal,
@@ -262,6 +299,10 @@ class SaleQuote {
     'notas': notas,
     'notasInternas': notasInternas,
     'ordenId': ordenId,
+    'opportunityId': opportunityId,
+    'version': version,
+    'emailEnviadoAt': emailEnviadoAt != null ? Timestamp.fromDate(emailEnviadoAt!) : null,
+    'emailEnviadoA': emailEnviadoA,
     'updatedAt': FieldValue.serverTimestamp(),
     'lastModifiedBy': lastModifiedBy,
   };
@@ -270,12 +311,14 @@ class SaleQuote {
     String? id, String? folio, QuoteStatus? status,
     String? clienteId, String? clienteNombre, String? clienteEmail,
     String? clienteTelefono, String? clienteRfc, String? clienteRazonSocial,
-    String? clienteEmpresa, List<SaleQuoteItem>? items,
+    String? clienteEmpresa, String? clienteDireccion,
+    List<SaleQuoteItem>? items,
     double? subtotal, double? descuentoGlobal, double? subtotalConDescuento,
     double? ivaPorcentaje, double? ivaTotal, double? total, String? moneda,
     int? vigenciaDias, DateTime? fechaExpiracion,
     String? condicionesPago, String? notas, String? notasInternas,
-    String? ordenId,
+    String? ordenId, String? opportunityId, int? version,
+    DateTime? emailEnviadoAt, String? emailEnviadoA,
     DateTime? createdAt, DateTime? updatedAt, String? createdBy, String? lastModifiedBy,
   }) {
     return SaleQuote(
@@ -288,6 +331,7 @@ class SaleQuote {
       clienteRfc: clienteRfc ?? this.clienteRfc,
       clienteRazonSocial: clienteRazonSocial ?? this.clienteRazonSocial,
       clienteEmpresa: clienteEmpresa ?? this.clienteEmpresa,
+      clienteDireccion: clienteDireccion ?? this.clienteDireccion,
       items: items ?? this.items,
       subtotal: subtotal ?? this.subtotal,
       descuentoGlobal: descuentoGlobal ?? this.descuentoGlobal,
@@ -302,6 +346,10 @@ class SaleQuote {
       notas: notas ?? this.notas,
       notasInternas: notasInternas ?? this.notasInternas,
       ordenId: ordenId ?? this.ordenId,
+      opportunityId: opportunityId ?? this.opportunityId,
+      version: version ?? this.version,
+      emailEnviadoAt: emailEnviadoAt ?? this.emailEnviadoAt,
+      emailEnviadoA: emailEnviadoA ?? this.emailEnviadoA,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,

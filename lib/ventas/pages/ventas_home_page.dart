@@ -1,16 +1,20 @@
 // lib/ventas/pages/ventas_home_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/responsive.dart';
+import '../models/ventas_enums.dart';
 import '../services/ventas_service.dart';
 import 'quotes_list_page.dart';
 import 'orders_list_page.dart';
 import 'quote_form_page.dart';
+import 'opportunities_list_page.dart';
+import 'opportunity_form_page.dart';
 
-enum VentasView { dashboard, cotizaciones, ordenes }
+enum VentasView { dashboard, oportunidades, cotizaciones, ordenes }
 
 class VentasHomePage extends StatefulWidget {
   const VentasHomePage({super.key});
@@ -22,6 +26,8 @@ class _VentasHomePageState extends State<VentasHomePage> {
   VentasView _currentView = VentasView.dashboard;
   Map<String, dynamic>? _stats;
   bool _loadingStats = true;
+
+  final _nf = NumberFormat.currency(locale: 'es_MX', symbol: '\$', decimalDigits: 0);
 
   @override
   void initState() {
@@ -74,15 +80,29 @@ class _VentasHomePageState extends State<VentasHomePage> {
         ],
       ),
       bottomNavigationBar: isMobile ? _buildBottomNav() : null,
-      floatingActionButton: _currentView == VentasView.cotizaciones
-          ? FloatingActionButton.extended(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuoteFormPage())),
-              backgroundColor: AppColors.primary,
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: const Text('Nueva cotización', style: TextStyle(color: Colors.white)),
-            )
-          : null,
+      floatingActionButton: _buildFAB(),
     );
+  }
+
+  Widget? _buildFAB() {
+    switch (_currentView) {
+      case VentasView.cotizaciones:
+        return FloatingActionButton.extended(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuoteFormPage())),
+          backgroundColor: AppColors.primary,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text('Nueva cotización', style: TextStyle(color: Colors.white)),
+        );
+      case VentasView.oportunidades:
+        return FloatingActionButton.extended(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OpportunityFormPage())),
+          backgroundColor: AppColors.primary,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text('Nueva oportunidad', style: TextStyle(color: Colors.white)),
+        );
+      default:
+        return null;
+    }
   }
 
   Widget _buildSidebar() {
@@ -96,6 +116,7 @@ class _VentasHomePageState extends State<VentasHomePage> {
         children: [
           const SizedBox(height: AppDimensions.md),
           _sidebarItem(VentasView.dashboard, Icons.dashboard_rounded, 'Dashboard'),
+          _sidebarItem(VentasView.oportunidades, Icons.lightbulb_rounded, 'Oportunidades'),
           _sidebarItem(VentasView.cotizaciones, Icons.request_quote_rounded, 'Cotizaciones'),
           _sidebarItem(VentasView.ordenes, Icons.receipt_long_rounded, 'Órdenes'),
         ],
@@ -124,6 +145,7 @@ class _VentasHomePageState extends State<VentasHomePage> {
       onDestinationSelected: (i) => setState(() => _currentView = VentasView.values[i]),
       destinations: const [
         NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+        NavigationDestination(icon: Icon(Icons.lightbulb_rounded), label: 'Oportunidades'),
         NavigationDestination(icon: Icon(Icons.request_quote_rounded), label: 'Cotizaciones'),
         NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Órdenes'),
       ],
@@ -134,6 +156,8 @@ class _VentasHomePageState extends State<VentasHomePage> {
     switch (_currentView) {
       case VentasView.dashboard:
         return _buildDashboard();
+      case VentasView.oportunidades:
+        return const OpportunitiesListPage();
       case VentasView.cotizaciones:
         return const QuotesListPage();
       case VentasView.ordenes:
@@ -142,7 +166,7 @@ class _VentasHomePageState extends State<VentasHomePage> {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // DASHBOARD
+  // DASHBOARD MEJORADO
   // ═══════════════════════════════════════════════════════════
 
   Widget _buildDashboard() {
@@ -155,7 +179,11 @@ class _VentasHomePageState extends State<VentasHomePage> {
     final cotPendientes = (stats['cotizacionesPendientes'] ?? 0) as int;
     final porCobrar = (stats['ordenesPorCobrar'] ?? 0.0) as double;
     final tasa = (stats['tasaConversion'] ?? 0.0) as double;
+    final oppsActivas = (stats['oportunidadesActivas'] ?? 0) as int;
+    final valorPipeline = (stats['valorPipeline'] ?? 0.0) as double;
+    final cotsPorVencer = (stats['cotizacionesPorVencer'] ?? 0) as int;
     final topProducts = (stats['topProducts'] ?? []) as List;
+    final oppsPorStatus = (stats['oppsPorStatus'] ?? <String, int>{}) as Map<String, dynamic>;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppDimensions.lg),
@@ -165,38 +193,59 @@ class _VentasHomePageState extends State<VentasHomePage> {
           Text('Dashboard de Ventas', style: AppTextStyles.h3),
           const SizedBox(height: AppDimensions.lg),
 
-          // Stats cards
+          // KPI Cards — Row 1
           Wrap(
             spacing: AppDimensions.md,
             runSpacing: AppDimensions.md,
             children: [
-              _StatCard(
-                icon: Icons.attach_money_rounded,
-                title: 'Ventas del mes',
-                value: '\$${ventasMes.toStringAsFixed(0)}',
-                color: AppColors.success,
-              ),
-              _StatCard(
-                icon: Icons.request_quote_rounded,
-                title: 'Cotizaciones pendientes',
-                value: '$cotPendientes',
-                color: AppColors.warning,
-              ),
-              _StatCard(
-                icon: Icons.account_balance_wallet_rounded,
-                title: 'Por cobrar',
-                value: '\$${porCobrar.toStringAsFixed(0)}',
-                color: AppColors.error,
-              ),
-              _StatCard(
-                icon: Icons.trending_up_rounded,
-                title: 'Tasa de conversión',
-                value: '${tasa.toStringAsFixed(1)}%',
-                color: AppColors.primary,
-              ),
+              _StatCard(icon: Icons.attach_money_rounded, title: 'Ventas del mes', value: _nf.format(ventasMes), color: AppColors.success),
+              _StatCard(icon: Icons.request_quote_rounded, title: 'Cotizaciones pendientes', value: '$cotPendientes', color: AppColors.warning),
+              _StatCard(icon: Icons.account_balance_wallet_rounded, title: 'Por cobrar', value: _nf.format(porCobrar), color: AppColors.error),
+              _StatCard(icon: Icons.trending_up_rounded, title: 'Tasa de conversión', value: '${tasa.toStringAsFixed(1)}%', color: AppColors.primary),
+              _StatCard(icon: Icons.lightbulb_rounded, title: 'Oportunidades activas', value: '$oppsActivas', color: AppColors.info),
+              _StatCard(icon: Icons.show_chart_rounded, title: 'Valor del pipeline', value: _nf.format(valorPipeline), color: const Color(0xFF7E57C2)),
             ],
           ),
 
+          // Alerta de cotizaciones por vencer
+          if (cotsPorVencer > 0) ...[
+            const SizedBox(height: AppDimensions.lg),
+            Container(
+              padding: const EdgeInsets.all(AppDimensions.md),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+                  const SizedBox(width: AppDimensions.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('⚠️ $cotsPorVencer cotización(es) por vencer', style: AppTextStyles.labelLarge.copyWith(color: AppColors.warning)),
+                        Text('Tienen 3 días o menos de vigencia', style: AppTextStyles.caption),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _currentView = VentasView.cotizaciones),
+                    child: const Text('Ver'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Pipeline de Oportunidades
+          const SizedBox(height: AppDimensions.xl),
+          Text('Pipeline de Oportunidades', style: AppTextStyles.h4),
+          const SizedBox(height: AppDimensions.md),
+          _buildPipelineChart(oppsPorStatus),
+
+          // Top Productos
           const SizedBox(height: AppDimensions.xl),
           Text('Top Productos Vendidos', style: AppTextStyles.h4),
           const SizedBox(height: AppDimensions.md),
@@ -252,6 +301,82 @@ class _VentasHomePageState extends State<VentasHomePage> {
       ),
     );
   }
+
+  Widget _buildPipelineChart(Map<String, dynamic> oppsPorStatus) {
+    final activeStatuses = [
+      OpportunityStatus.nueva,
+      OpportunityStatus.calificada,
+      OpportunityStatus.propuesta,
+      OpportunityStatus.negociacion,
+      OpportunityStatus.ganada,
+      OpportunityStatus.perdida,
+    ];
+
+    final total = activeStatuses.fold<int>(0, (s, st) => s + ((oppsPorStatus[st.value] ?? 0) as int));
+
+    if (total == 0) {
+      return Container(
+        padding: const EdgeInsets.all(AppDimensions.xl),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.lightbulb_outline_rounded, size: 48, color: AppColors.textHint),
+              const SizedBox(height: AppDimensions.md),
+              Text('Sin oportunidades aún', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
+              const SizedBox(height: AppDimensions.md),
+              FilledButton.icon(
+                onPressed: () => setState(() => _currentView = VentasView.oportunidades),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Crear oportunidad'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        children: activeStatuses.map((status) {
+          final count = (oppsPorStatus[status.value] ?? 0) as int;
+          final pct = total > 0 ? count / total : 0.0;
+          final color = Color(status.colorValue);
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                SizedBox(width: 100, child: Text('${status.emoji} ${status.label}', style: AppTextStyles.caption)),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: pct,
+                      backgroundColor: AppColors.divider,
+                      valueColor: AlwaysStoppedAnimation(color),
+                      minHeight: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppDimensions.sm),
+                SizedBox(width: 30, child: Text('$count', style: AppTextStyles.labelMedium.copyWith(color: color), textAlign: TextAlign.right)),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 }
 
 class _StatCard extends StatelessWidget {
@@ -265,7 +390,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 220,
+      width: 200,
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,

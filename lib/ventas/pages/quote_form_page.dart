@@ -14,7 +14,9 @@ import '../services/ventas_service.dart';
 
 class QuoteFormPage extends StatefulWidget {
   final SaleQuote? quote;
-  const QuoteFormPage({super.key, this.quote});
+  final String? opportunityId;
+  final String? preselectedContactId;
+  const QuoteFormPage({super.key, this.quote, this.opportunityId, this.preselectedContactId});
 
   @override
   State<QuoteFormPage> createState() => _QuoteFormPageState();
@@ -39,6 +41,7 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
   final _vigenciaCtrl = TextEditingController(text: '15');
   final _condicionesCtrl = TextEditingController();
   final _notasCtrl = TextEditingController();
+  final _notasInternasCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -54,6 +57,7 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
     _vigenciaCtrl.text = q.vigenciaDias.toString();
     _condicionesCtrl.text = q.condicionesPago ?? '';
     _notasCtrl.text = q.notas ?? '';
+    _notasInternasCtrl.text = q.notasInternas ?? '';
   }
 
   Future<void> _loadClients() async {
@@ -66,6 +70,8 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
           _loadingClients = false;
           if (_isEditing) {
             _selectedClient = clients.where((c) => c.id == widget.quote!.clienteId).firstOrNull;
+          } else if (widget.preselectedContactId != null) {
+            _selectedClient = clients.where((c) => c.id == widget.preselectedContactId).firstOrNull;
           }
         });
       }
@@ -86,6 +92,7 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
     _vigenciaCtrl.dispose();
     _condicionesCtrl.dispose();
     _notasCtrl.dispose();
+    _notasInternasCtrl.dispose();
     super.dispose();
   }
 
@@ -579,7 +586,9 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
           const SizedBox(height: AppDimensions.md),
           TextFormField(controller: _condicionesCtrl, decoration: const InputDecoration(labelText: 'Condiciones de pago'), maxLines: 2),
           const SizedBox(height: AppDimensions.md),
-          TextFormField(controller: _notasCtrl, decoration: const InputDecoration(labelText: 'Notas'), maxLines: 3),
+          TextFormField(controller: _notasCtrl, decoration: const InputDecoration(labelText: 'Notas (visibles en PDF)'), maxLines: 3),
+          const SizedBox(height: AppDimensions.md),
+          TextFormField(controller: _notasInternasCtrl, decoration: const InputDecoration(labelText: 'Notas internas (no visibles para el cliente)', prefixIcon: Icon(Icons.lock_outline_rounded)), maxLines: 2),
         ],
       ),
     );
@@ -621,6 +630,7 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
         clienteRfc: _selectedClient!.rfc,
         clienteRazonSocial: _selectedClient!.razonSocial,
         clienteEmpresa: _selectedClient!.empresa,
+        clienteDireccion: _selectedClient!.direccionCompleta,
         items: _items,
         subtotal: _subtotal,
         descuentoGlobal: _descuentoGlobal,
@@ -632,6 +642,9 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
         fechaExpiracion: DateTime.now().add(Duration(days: vigencia)),
         condicionesPago: _condicionesCtrl.text.isNotEmpty ? _condicionesCtrl.text : null,
         notas: _notasCtrl.text.isNotEmpty ? _notasCtrl.text : null,
+        notasInternas: _notasInternasCtrl.text.isNotEmpty ? _notasInternasCtrl.text : null,
+        opportunityId: widget.opportunityId ?? widget.quote?.opportunityId,
+        version: widget.quote?.version ?? 1,
         createdAt: widget.quote?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         createdBy: widget.quote?.createdBy ?? '',

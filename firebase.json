@@ -1,4 +1,8 @@
 {
+  "firestore": {
+    "database": "crm-solucionesti",
+    "rules": "firestore.rules"
+  },
   "flutter": {
     "platforms": {
       "android": {

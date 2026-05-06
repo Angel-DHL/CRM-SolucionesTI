@@ -1,0 +1,246 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function role() { return request.auth.token.role; }
+    function isAdmin() { return isSignedIn() && role() == 'admin'; }
+
+    // Roles operativos:
+    function isSoporteTecnico() { return isSignedIn() && role() == 'soporte_tecnico'; }
+    function isSoporteSistemas() { return isSignedIn() && role() == 'soporte_sistemas'; }
+
+    // Activity access helpers
+    function isAssignee(activity) {
+      return isSignedIn()
+        && activity.data.assigneesUids.hasAny([request.auth.uid]);
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /oper_activities/{activityId} {
+      // Admin ve todo; asignados ven lo suyo
+      allow read: if isAdmin() || isAssignee(resource);
+
+      // Solo Admin crea/edita asignación/planificación
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        // o bien: asignados pueden actualizar campos operativos específicos
+        || (isAssignee(resource) && request.resource.data.diff(resource.data).changedKeys()
+            .hasOnly([
+              'status',
+              'actualStartAt',
+              'actualEndAt',
+              'workStartAt',
+              'workEndAt',
+              'progress',
+              'updatedAt'
+            ]));
+
+      allow delete: if isAdmin();
+
+      // Subcolección de logs (bitácora)
+      match /logs/{logId} {
+        allow read: if isAdmin() || isAssignee(get(/databases/$(database)/documents/oper_activities/$(activityId)));
+        allow create: if isSignedIn();
+        allow update, delete: if false;
+      }
+
+      // Evidencias (metadatos)
+      match /evidences/{evidenceId} {
+        allow read: if isAdmin() || isAssignee(get(/databases/$(database)/documents/oper_activities/$(activityId)));
+        allow create: if isAdmin() || isAssignee(get(/databases/$(database)/documents/oper_activities/$(activityId)));
+        allow delete: if isAdmin();
+        allow update: if false;
+      }
+      
+      match /comments/{commentId} {
+        allow read: if isAdmin() || isAssignee(get(/databases/$(database)/documents/oper_activities/$(activityId)));
+        allow create: if isSignedIn() && (
+          isAdmin() || isAssignee(get(/databases/$(database)/documents/oper_activities/$(activityId)))
+        );
+        allow update: if isSignedIn() && resource.data.authorUid == request.auth.uid;
+        allow delete: if isAdmin() || resource.data.authorUid == request.auth.uid;
+      }
+    }
+    
+    // LEADS del sitio web
+    match /leads/{leadId} {
+      allow create: if true;
+      allow read, update, delete: if isSignedIn();
+    }
+    
+    // NOTIFICACIONES
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.recipientUid == request.auth.uid;
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // MÓDULO DE INVENTARIO
+    // ═════════════════════════════════════════════════════════════
+
+    function canReadInventory() {
+      return isSignedIn();
+    }
+
+    function canWriteInventory() {
+      return isSoporteSistemas() || isAdmin();
+    }
+
+    function canModifyInventoryItem() {
+      return isSignedIn() && (
+        isSoporteTecnico() || 
+        isSoporteSistemas() || 
+        isAdmin()
+      );
+    }
+
+    match /inventory_categories/{categoryId} {
+      allow read: if canReadInventory();
+      allow create, update: if canWriteInventory();
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_items/{itemId} {
+      allow read: if canReadInventory();
+      allow create: if canWriteInventory();
+      allow update: if canWriteInventory() || (
+        isSoporteTecnico() && 
+        request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly([
+            'stock',
+            'defaultLocationId',
+            'stockByLocation',
+            'status',
+            'assignedToUserId',
+            'lastMaintenanceDate',
+            'nextMaintenanceDate',
+            'notes',
+            'internalNotes',
+            'updatedAt',
+            'lastModifiedBy'
+          ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_locations/{locationId} {
+      allow read: if canReadInventory();
+      allow create: if canModifyInventoryItem();
+      allow update: if canWriteInventory();
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_suppliers/{supplierId} {
+      allow read: if canReadInventory();
+      allow create, update: if canWriteInventory();
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_movements/{movementId} {
+      allow read: if canReadInventory();
+      allow create: if canModifyInventoryItem();
+      allow update: if isAdmin() || (
+        isSoporteSistemas() && 
+        resource.data.status == 'pending' &&
+        request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(['status', 'approvedBy', 'approvedAt', 'rejectedBy', 'rejectedAt', 'rejectionReason', 'completedAt'])
+      ) || (
+        isSoporteTecnico() &&
+        resource.data.createdBy == request.auth.uid &&
+        resource.data.status == 'pending' &&
+        request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(['status', 'notes', 'completedAt'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_counters/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /inventory_audit_logs/{logId} {
+      allow read: if canReadInventory();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // MÓDULO CRM
+    // ═════════════════════════════════════════════════════════════
+
+    match /crm_contacts/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+    }
+
+    match /crm_activity_logs/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // MÓDULO DE VENTAS (NUEVO)
+    // ═════════════════════════════════════════════════════════════
+
+    match /sales_quotes/{quoteId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+    }
+
+    match /sales_orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+    }
+
+    match /sales_opportunities/{oppId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+    }
+
+    match /sales_counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // MÓDULO DE MARKETING
+    // ═════════════════════════════════════════════════════════════
+
+    match /marketing_campaigns/{campaignId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+    }
+
+    match /marketing_audiences/{audienceId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+    }
+
+    match /marketing_social_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+    }
+
+    match /marketing_counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
+  }
+}

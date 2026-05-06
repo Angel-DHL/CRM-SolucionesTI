@@ -16,7 +16,8 @@
   "dependencies": {
     "cors": "^2.8.6",
     "firebase-admin": "^13.6.1",
-    "firebase-functions": "^7.0.5"
+    "firebase-functions": "^7.0.5",
+    "nodemailer": "^8.0.7"
   },
   "devDependencies": {
     "eslint": "^8.15.0",

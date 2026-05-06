@@ -2,11 +2,13 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../core/firebase_helper.dart';
 import '../../crm/models/crm_enums.dart';
 import '../../crm/services/crm_service.dart';
 import '../models/sale_quote.dart';
 import '../models/sale_order.dart';
+import '../models/sale_opportunity.dart';
 import '../models/ventas_enums.dart';
 
 class VentasService {
@@ -20,18 +22,117 @@ class VentasService {
   // ═══════════════════════════════════════════════════════════
 
   Future<String> _nextFolio(String prefix) async {
-    final ref = FirebaseHelper.salesCounters.doc(prefix);
-    final result = await FirebaseHelper.db.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      int current = 0;
+    try {
+      final ref = FirebaseHelper.salesCounters.doc(prefix);
+      final result = await FirebaseHelper.db.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        int current = 0;
+        if (snap.exists) {
+          current = (snap.data()?['current'] ?? 0) as int;
+        }
+        final next = current + 1;
+        tx.set(ref, {'current': next}, SetOptions(merge: true));
+        return next;
+      });
+      return '$prefix-${result.toString().padLeft(4, '0')}';
+    } catch (e) {
+      debugPrint('Error generating folio: $e');
+      // Fallback: usar timestamp si falla la transacción
+      final ts = DateTime.now().millisecondsSinceEpoch % 100000;
+      return '$prefix-$ts';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // OPORTUNIDADES — CRUD
+  // ═══════════════════════════════════════════════════════════
+
+  Stream<List<SaleOpportunity>> streamOpportunities({OpportunityStatus? status}) {
+    Query<Map<String, dynamic>> query = FirebaseHelper.salesOpportunities;
+    if (status != null) {
+      query = query.where('status', isEqualTo: status.value);
+    }
+    return query
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((s) => s.docs.map(SaleOpportunity.fromDoc).toList());
+  }
+
+  Stream<SaleOpportunity?> streamOpportunity(String id) {
+    return FirebaseHelper.salesOpportunities.doc(id).snapshots().map(
+      (s) => s.exists ? SaleOpportunity.fromDoc(s) : null,
+    );
+  }
+
+  Future<String> createOpportunity(SaleOpportunity opp) async {
+    try {
+      final folio = await _nextFolio('OPP');
+      final data = opp.copyWith(
+        folio: folio,
+        createdBy: _uid,
+        lastModifiedBy: _uid,
+      ).toMap();
+
+      final doc = await FirebaseHelper.salesOpportunities.add(data);
+
+      // Automatización: Si el contacto es lead, avanzar a prospecto
+      await _autoAdvanceContact(opp.contactoId, ContactStatus.prospecto);
+
+      await _logCrmActivity(
+        opp.contactoId,
+        'Oportunidad creada: $folio — ${opp.titulo} (Valor: \$${opp.valorEstimado.toStringAsFixed(2)})',
+      );
+
+      return doc.id;
+    } catch (e) {
+      debugPrint('Error creating opportunity: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateOpportunity(SaleOpportunity opp) async {
+    final data = opp.copyWith(lastModifiedBy: _uid).toUpdateMap();
+    await FirebaseHelper.salesOpportunities.doc(opp.id).update(data);
+  }
+
+  Future<void> changeOpportunityStatus(String oppId, OpportunityStatus newStatus, {String? motivoPerdida}) async {
+    final updates = <String, dynamic>{
+      'status': newStatus.value,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastModifiedBy': _uid,
+    };
+    if (motivoPerdida != null) {
+      updates['motivoPerdida'] = motivoPerdida;
+    }
+    // Si ganada, probabilidad = 100
+    if (newStatus == OpportunityStatus.ganada) {
+      updates['probabilidad'] = 100.0;
+    }
+    if (newStatus == OpportunityStatus.perdida) {
+      updates['probabilidad'] = 0.0;
+    }
+
+    await FirebaseHelper.salesOpportunities.doc(oppId).update(updates);
+
+    // Si ganada, avanzar contacto a cliente
+    if (newStatus == OpportunityStatus.ganada) {
+      final snap = await FirebaseHelper.salesOpportunities.doc(oppId).get();
       if (snap.exists) {
-        current = (snap.data()?['current'] ?? 0) as int;
+        final contactoId = snap.data()?['contactoId'] as String? ?? '';
+        if (contactoId.isNotEmpty) {
+          await _autoAdvanceContact(contactoId, ContactStatus.cliente);
+          await _logCrmActivity(contactoId, 'Oportunidad ganada → Contacto promovido a Cliente');
+        }
       }
-      final next = current + 1;
-      tx.set(ref, {'current': next}, SetOptions(merge: true));
-      return next;
+    }
+  }
+
+  /// Vincula una cotización a una oportunidad
+  Future<void> linkQuoteToOpportunity(String oppId, String quoteId) async {
+    await FirebaseHelper.salesOpportunities.doc(oppId).update({
+      'cotizacionIds': FieldValue.arrayUnion([quoteId]),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
-    return '$prefix-${result.toString().padLeft(4, '0')}';
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -52,22 +153,35 @@ class VentasService {
   }
 
   Future<String> createQuote(SaleQuote quote) async {
-    final folio = await _nextFolio('COT');
-    final data = quote.copyWith(
-      folio: folio,
-      createdBy: _uid,
-      lastModifiedBy: _uid,
-    ).toMap();
+    try {
+      final folio = await _nextFolio('COT');
+      final data = quote.copyWith(
+        folio: folio,
+        createdBy: _uid,
+        lastModifiedBy: _uid,
+      ).toMap();
 
-    final doc = await FirebaseHelper.salesQuotes.add(data);
+      final doc = await FirebaseHelper.salesQuotes.add(data);
 
-    // Trazabilidad: Registrar actividad en CRM
-    await _logCrmActivity(
-      quote.clienteId,
-      'Cotización creada: $folio por \$${quote.total.toStringAsFixed(2)} ${quote.moneda}',
-    );
+      // Automatización: Avanzar contacto a clientePotencial
+      await _autoAdvanceContact(quote.clienteId, ContactStatus.clientePotencial);
 
-    return doc.id;
+      // Vincular a oportunidad si existe
+      if (quote.opportunityId != null && quote.opportunityId!.isNotEmpty) {
+        await linkQuoteToOpportunity(quote.opportunityId!, doc.id);
+      }
+
+      // Trazabilidad: Registrar actividad en CRM
+      await _logCrmActivity(
+        quote.clienteId,
+        'Cotización creada: $folio por \$${quote.total.toStringAsFixed(2)} ${quote.moneda}',
+      );
+
+      return doc.id;
+    } catch (e) {
+      debugPrint('Error creating quote: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateQuote(SaleQuote quote) async {
@@ -89,6 +203,16 @@ class VentasService {
       'updatedAt': FieldValue.serverTimestamp(),
       'lastModifiedBy': _uid,
     });
+
+    // Automatización: Al aceptar cotización, el contacto pasa a cliente
+    final snap = await FirebaseHelper.salesQuotes.doc(quoteId).get();
+    if (snap.exists) {
+      final contactoId = snap.data()?['clienteId'] as String? ?? '';
+      if (contactoId.isNotEmpty) {
+        await _autoAdvanceContact(contactoId, ContactStatus.cliente);
+        await _logCrmActivity(contactoId, 'Cotización aceptada → Contacto promovido a Cliente');
+      }
+    }
   }
 
   Future<void> rejectQuote(String quoteId) async {
@@ -97,6 +221,32 @@ class VentasService {
       'updatedAt': FieldValue.serverTimestamp(),
       'lastModifiedBy': _uid,
     });
+  }
+
+  /// Registra que la cotización fue enviada por email
+  Future<void> markQuoteEmailed(String quoteId, String emailTo) async {
+    await FirebaseHelper.salesQuotes.doc(quoteId).update({
+      'emailEnviadoAt': FieldValue.serverTimestamp(),
+      'emailEnviadoA': emailTo,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastModifiedBy': _uid,
+    });
+  }
+
+  /// Duplica una cotización como borrador
+  Future<String> duplicateQuote(SaleQuote original) async {
+    final newQuote = original.copyWith(
+      id: '',
+      folio: '',
+      status: QuoteStatus.borrador,
+      version: original.version + 1,
+      ordenId: null,
+      emailEnviadoAt: null,
+      emailEnviadoA: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    return createQuote(newQuote);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -162,11 +312,19 @@ class VentasService {
       await _decrementStock(item.inventoryItemId, item.cantidad.toInt());
     }
 
-    // 5. Registrar actividad en CRM
+    // 5. Automatización: Avanzar contacto a cliente
+    await _autoAdvanceContact(quote.clienteId, ContactStatus.cliente);
+
+    // 6. Registrar actividad en CRM
     await _logCrmActivity(
       quote.clienteId,
       'Orden de venta generada: $orderFolio desde cotización ${quote.folio}. Total: \$${quote.total.toStringAsFixed(2)}',
     );
+
+    // 7. Si hay oportunidad vinculada, marcarla como ganada
+    if (quote.opportunityId != null && quote.opportunityId!.isNotEmpty) {
+      await changeOpportunityStatus(quote.opportunityId!, OpportunityStatus.ganada);
+    }
 
     return orderDoc.id;
   }
@@ -232,9 +390,9 @@ class VentasService {
       'lastModifiedBy': _uid,
     });
 
-    // Trazabilidad: Si se pagó completo, avanzar contacto a "cliente" en CRM
+    // Trazabilidad: Si se pagó completo, confirmar contacto como cliente
     if (newPaymentStatus == PaymentStatus.pagada) {
-      await _advanceContactToClient(order.clienteId);
+      await _autoAdvanceContact(order.clienteId, ContactStatus.cliente);
       await _logCrmActivity(
         order.clienteId,
         'Pago completo registrado en orden ${order.folio}: \$${order.total.toStringAsFixed(2)}',
@@ -267,6 +425,11 @@ class VentasService {
         .get();
     final orders = ordersSnap.docs.map(SaleOrder.fromDoc).toList();
 
+    // Oportunidades activas (todas, no solo del mes)
+    final oppsSnap = await FirebaseHelper.salesOpportunities.get();
+    final opps = oppsSnap.docs.map(SaleOpportunity.fromDoc).toList();
+    final oppsActivas = opps.where((o) => o.isActive).toList();
+
     // Todas las órdenes para top productos
     final allOrdersSnap = await FirebaseHelper.salesOrders.get();
     final allOrders = allOrdersSnap.docs.map(SaleOrder.fromDoc).toList();
@@ -296,6 +459,22 @@ class VentasService {
     final converted = quotes.where((q) => q.status == QuoteStatus.convertida).length;
     final tasaConversion = totalQuotes > 0 ? (converted / totalQuotes * 100) : 0.0;
 
+    // Pipeline de oportunidades (conteo por status)
+    final oppsPorStatus = <String, int>{};
+    for (final status in OpportunityStatus.values) {
+      oppsPorStatus[status.value] = opps.where((o) => o.status == status).length;
+    }
+
+    // Valor del pipeline (solo oportunidades activas)
+    final valorPipeline = oppsActivas.fold<double>(0, (s, o) => s + o.valorPonderado);
+
+    // Cotizaciones por vencer (próximos 3 días)
+    final allQuotesSnap = await FirebaseHelper.salesQuotes
+        .where('status', isEqualTo: QuoteStatus.enviada.value)
+        .get();
+    final allQuotes = allQuotesSnap.docs.map(SaleQuote.fromDoc).toList();
+    final cotsPorVencer = allQuotes.where((q) => q.porVencer).toList();
+
     return {
       'ventasMes': ventasMes,
       'cotizacionesPendientes': cotizacionesPendientes,
@@ -303,6 +482,10 @@ class VentasService {
       'tasaConversion': tasaConversion,
       'totalCotizaciones': totalQuotes,
       'totalOrdenes': orders.length,
+      'oportunidadesActivas': oppsActivas.length,
+      'valorPipeline': valorPipeline,
+      'oppsPorStatus': oppsPorStatus,
+      'cotizacionesPorVencer': cotsPorVencer.length,
       'topProducts': topProducts.take(5).map((e) => {
         'sku': e.key,
         'nombre': productNames[e.key] ?? e.key,
@@ -342,17 +525,22 @@ class VentasService {
     }
   }
 
-  /// Avanza un contacto a "Cliente" si aún no lo es
-  Future<void> _advanceContactToClient(String contactId) async {
+  /// Avanza un contacto a un status dado si está en un nivel inferior
+  Future<void> _autoAdvanceContact(String contactId, ContactStatus targetStatus) async {
     try {
       final ref = FirebaseHelper.crmContacts.doc(contactId);
       final snap = await ref.get();
       if (!snap.exists) return;
       final data = snap.data()!;
-      final currentStatus = data['status'] as String?;
-      if (currentStatus != 'cliente') {
-        await CrmService.instance.updateStatus(contactId, ContactStatus.cliente);
+      final currentStatusStr = data['status'] as String?;
+      final currentStatus = ContactStatusX.from(currentStatusStr);
+
+      // Solo avanzar si el target tiene un pipelineOrder mayor
+      if (targetStatus.pipelineOrder > currentStatus.pipelineOrder) {
+        await CrmService.instance.updateStatus(contactId, targetStatus);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error auto-advancing contact: $e');
+    }
   }
 }

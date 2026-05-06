@@ -82,4 +82,23 @@ class FirebaseHelper {
 
   static CollectionReference<Map<String, dynamic>> get salesCounters =>
       db.collection('sales_counters');
+
+  static CollectionReference<Map<String, dynamic>> get salesOpportunities =>
+      db.collection('sales_opportunities');
+
+  // ═══════════════════════════════════════════════════════════
+  // COLECCIONES DE MARKETING
+  // ═══════════════════════════════════════════════════════════
+
+  static CollectionReference<Map<String, dynamic>> get marketingCampaigns =>
+      db.collection('marketing_campaigns');
+
+  static CollectionReference<Map<String, dynamic>> get marketingAudiences =>
+      db.collection('marketing_audiences');
+
+  static CollectionReference<Map<String, dynamic>> get marketingSocialMetrics =>
+      db.collection('marketing_social_metrics');
+
+  static CollectionReference<Map<String, dynamic>> get marketingCounters =>
+      db.collection('marketing_counters');
 }

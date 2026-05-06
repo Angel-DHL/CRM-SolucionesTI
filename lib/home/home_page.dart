@@ -1,5 +1,6 @@
 import 'package:crm_solucionesti/crm/pages/crm_home_page.dart';
 import 'package:crm_solucionesti/inventory/pages/inventory_home_page.dart';
+import 'package:crm_solucionesti/marketing/pages/marketing_home_page.dart';
 import 'package:crm_solucionesti/ventas/pages/ventas_home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -240,6 +241,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         break;
       case AppModule.ventas:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const VentasHomePage()));
+        break;
+      case AppModule.marketing:
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MarketingHomePage()));
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
