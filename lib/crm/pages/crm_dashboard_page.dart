@@ -139,6 +139,7 @@ class _KpiSection extends StatelessWidget {
         final prospectos = counts[ContactStatus.prospecto] ?? 0;
         final potenciales = counts[ContactStatus.clientePotencial] ?? 0;
         final clientes = counts[ContactStatus.cliente] ?? 0;
+        // ignore: unused_local_variable
         final inactivos = counts[ContactStatus.inactivo] ?? 0;
 
         // Tasa de conversión

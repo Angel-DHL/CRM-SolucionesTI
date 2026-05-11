@@ -314,7 +314,6 @@ class ProjectDashboardPage extends StatelessWidget {
   }
 
   Widget _projectTile(Project p, {bool showDelay = false}) {
-    final df = DateFormat('dd MMM yyyy', 'es_MX');
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md, vertical: AppDimensions.sm),

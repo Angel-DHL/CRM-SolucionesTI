@@ -215,6 +215,7 @@ class InventoryStorageService {
       if (result == null || result.files.isEmpty) return null;
 
       final file = result.files.first;
+      // ignore: unused_local_variable
       final extension = file.extension ?? 'pdf';
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final safeFileName = _sanitizeFileName(file.name);

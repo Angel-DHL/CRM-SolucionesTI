@@ -100,6 +100,7 @@ class _ImagesSectionState extends State<ImagesSection> {
     widget.onAdditionalImagesChanged(updated);
   }
 
+  // ignore: unused_element
   void _showSaveFirstMessage() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

@@ -19,7 +19,6 @@ import 'activity_detail_page.dart';
 import 'admin_create_activity_page.dart';
 import '../../core/firebase_helper.dart';
 import '../widgets/notifications_panel.dart';
-import '../services/notification_service.dart';
 
 enum OperView { dashboard, kanban, calendar, gantt, list }
 

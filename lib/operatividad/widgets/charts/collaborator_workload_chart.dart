@@ -1,6 +1,6 @@
 // lib/operatividad/widgets/charts/collaborator_workload_chart.dart
 
-import 'package:fl_chart/fl_chart.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';

@@ -48,11 +48,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> with SingleTi
   Future<void> _loadUserData() async {
     if (_user == null) return;
     try {
-      final doc = await FirebaseHelper.db.collection('users').doc(_user!.uid).get();
+      final doc = await FirebaseHelper.db.collection('users').doc(_user.uid).get();
       if (doc.exists && mounted) {
         final d = doc.data()!;
         setState(() {
-          _firstNameCtrl.text = d['firstName'] ?? _user!.displayName?.split(' ').first ?? '';
+          _firstNameCtrl.text = d['firstName'] ?? _user.displayName?.split(' ').first ?? '';
           _lastNameCtrl.text = d['lastName'] ?? '';
           _phoneCtrl.text = d['phone'] ?? '';
           _jobTitleCtrl.text = d['jobTitle'] ?? '';
@@ -63,9 +63,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> with SingleTi
           _notifSoporte = d['notif_soporte'] ?? true;
         });
       } else {
-        _firstNameCtrl.text = _user!.displayName?.split(' ').first ?? '';
-        if ((_user!.displayName ?? '').contains(' ')) {
-          _lastNameCtrl.text = _user!.displayName!.split(' ').skip(1).join(' ');
+        _firstNameCtrl.text = _user.displayName?.split(' ').first ?? '';
+        if ((_user.displayName ?? '').contains(' ')) {
+          _lastNameCtrl.text = _user.displayName!.split(' ').skip(1).join(' ');
         }
       }
     } catch (_) {}
@@ -133,8 +133,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> with SingleTi
     setState(() => _loading = true);
     try {
       final cred = EmailAuthProvider.credential(email: _user!.email!, password: _currentPwCtrl.text);
-      await _user!.reauthenticateWithCredential(cred);
-      await _user!.updatePassword(_newPwCtrl.text);
+      await _user.reauthenticateWithCredential(cred);
+      await _user.updatePassword(_newPwCtrl.text);
       _currentPwCtrl.clear(); _newPwCtrl.clear(); _confirmPwCtrl.clear();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Contraseña actualizada'), backgroundColor: AppColors.success));

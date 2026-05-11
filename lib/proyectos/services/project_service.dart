@@ -508,11 +508,11 @@ class ProjectService {
           pausadosCount: projects.where((p) => p.status == ProjectStatus.pausado).length,
           planificacionCount: projects.where((p) => p.status == ProjectStatus.planificacion).length,
           canceladosCount: projects.where((p) => p.status == ProjectStatus.cancelado).length,
-          valorTotalProyectos: projects.fold(0.0, (sum, p) => sum + p.valorProyecto),
-          totalIngresos: projects.fold(0.0, (sum, p) => sum + p.totalIngresos),
-          totalEgresos: projects.fold(0.0, (sum, p) => sum + p.totalEgresos),
+          valorTotalProyectos: projects.fold(0.0, (acc, p) => acc + p.valorProyecto),
+          totalIngresos: projects.fold(0.0, (acc, p) => acc + p.totalIngresos),
+          totalEgresos: projects.fold(0.0, (acc, p) => acc + p.totalEgresos),
           rentabilidadPromedio: projects.isNotEmpty
-              ? projects.fold(0.0, (sum, p) => sum + p.margenRentabilidad) / projects.length
+              ? projects.fold(0.0, (acc, p) => acc + p.margenRentabilidad) / projects.length
               : 0,
           proyectosAtrasados: projects.where((p) => p.estaAtrasado).length,
         );

@@ -2,7 +2,7 @@
 
 import 'dart:typed_data';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -12,10 +12,10 @@ import 'package:printing/printing.dart';
 
 import '../models/inventory_enums.dart';
 import '../models/inventory_item.dart';
-import '../models/inventory_category.dart';
+
 import '../models/inventory_movement.dart';
-import '../models/inventory_supplier.dart';
-import '../models/inventory_location.dart';
+
+
 import 'inventory_service.dart';
 import 'inventory_category_service.dart';
 import 'inventory_movement_service.dart';

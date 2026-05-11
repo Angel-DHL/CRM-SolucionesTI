@@ -108,6 +108,7 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
   bool get _isEditing => widget.item != null;
   String? _savedItemId;
 
+  // ignore: prefer_final_fields
   int _currentStep = 0;
 
   @override
@@ -377,6 +378,7 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
     );
   }
 
+  // ignore: unused_element
   List<Step> _getSteps() {
     return [
       Step(
@@ -413,6 +415,7 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
     ];
   }
 
+  // ignore: unused_element
   Widget _buildCurrentSection() {
     switch (_currentStep) {
       case 0:
@@ -693,7 +696,7 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
             ),
             title: const Text('¡Producto creado!'),
             content: Text(
-              '\"${_nameController.text.trim()}\" se guardó exitosamente.\n\n¿Deseas agregar otro producto?',
+              '"${_nameController.text.trim()}" se guardó exitosamente.\n\n¿Deseas agregar otro producto?',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
@@ -792,6 +795,7 @@ class _InventoryFormPageState extends State<InventoryFormPage> {
   }
 }
 
+// ignore: unused_element
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;

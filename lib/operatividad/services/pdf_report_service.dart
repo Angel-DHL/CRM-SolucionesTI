@@ -2,7 +2,7 @@
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' show Color;
+
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -75,6 +75,7 @@ class PdfReportService {
   // Colores del tema convertidos a PdfColor
   static final _primaryColor = PdfColor.fromInt(AppColors.primary.value);
   static final _primaryDark = PdfColor.fromInt(AppColors.primaryDark.value);
+  // ignore: unused_field
   static final _primaryLight = PdfColor.fromInt(AppColors.primaryLight.value);
   static final _successColor = PdfColor.fromInt(AppColors.success.value);
   static final _warningColor = PdfColor.fromInt(AppColors.warning.value);
@@ -84,7 +85,9 @@ class PdfReportService {
   static final _textSecondary = PdfColor.fromInt(AppColors.textSecondary.value);
   static final _textHint = PdfColor.fromInt(AppColors.textHint.value);
   static final _divider = PdfColor.fromInt(AppColors.divider.value);
+  // ignore: unused_field
   static final _background = PdfColor.fromInt(AppColors.background.value);
+  // ignore: unused_field
   static final _surface = PdfColors.white;
 
   /// Genera y muestra el diálogo de impresión/descarga del PDF
@@ -1100,17 +1103,29 @@ class _ReportStats {
   final double totalActualHours;
 
   const _ReportStats({
+    // ignore: unused_element_parameter
     required this.totalActivities,
+    // ignore: unused_element_parameter
     required this.completedActivities,
+    // ignore: unused_element_parameter
     required this.inProgressActivities,
+    // ignore: unused_element_parameter
     required this.plannedActivities,
+    // ignore: unused_element_parameter
     required this.blockedActivities,
+    // ignore: unused_element_parameter
     required this.overdueActivities,
+    // ignore: unused_element_parameter
     required this.onTimeDeliveries,
+    // ignore: unused_element_parameter
     required this.complianceRate,
+    // ignore: unused_element_parameter
     required this.onTimeRate,
+    // ignore: unused_element_parameter
     required this.averageProgress,
+    // ignore: unused_element_parameter
     required this.totalEstimatedHours,
+    // ignore: unused_element_parameter
     required this.totalActualHours,
   });
 }

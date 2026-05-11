@@ -177,6 +177,7 @@ class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.icon,
     required this.title,
+    // ignore: unused_element_parameter
     this.trailing,
   });
 

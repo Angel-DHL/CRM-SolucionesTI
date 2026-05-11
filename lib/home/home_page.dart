@@ -14,7 +14,7 @@ import '../core/role.dart';
 import '../core/role_access.dart';
 import '../admin/create_user_page.dart';
 import '../admin/user_management_page.dart';
-import '../admin/role_management_page.dart';
+
 import '../home/profile_settings_page.dart';
 import '../operatividad/pages/operatividad_page.dart';
 import '../core/services/role_service.dart';
@@ -169,8 +169,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = Responsive.isDesktop(context);
-    final isTablet = Responsive.isTablet(context);
     Responsive.isMobile(context);
 
     if (_loading) {
@@ -254,10 +252,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case AppModule.soporte:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SoporteHomePage()));
         break;
-      default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Módulo ${module.title} en desarrollo')),
-        );
     }
   }
 }
@@ -388,6 +382,7 @@ class _MainScaffold extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _DashboardView extends StatelessWidget {
   final UserRole role;
   final AnimationController controller;
@@ -429,6 +424,7 @@ class _DashboardView extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _ModulesView extends StatelessWidget {
   final List<AppModule> modules;
   final AnimationController controller;
@@ -844,6 +840,7 @@ class _Header extends StatelessWidget {
   final User? user;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onRefresh;
+  // ignore: unused_element_parameter
   final VoidCallback? onCreateUser;
 
   const _Header({
@@ -956,6 +953,7 @@ class _Header extends StatelessWidget {
 class _DashboardStats extends StatelessWidget {
   final AnimationController controller;
   final UserRole role;
+  // ignore: unused_element_parameter
   final bool isMobile;
   final int activeActivities;
   final int inventoryCount;
@@ -1224,6 +1222,7 @@ class _ModulesSection extends StatelessWidget {
   final AnimationController controller;
   final ValueChanged<AppModule> onModuleTap;
   final UserRole role;
+  // ignore: unused_element_parameter
   final bool isMobile;
 
   const _ModulesSection({
@@ -1861,9 +1860,11 @@ class _MobileBottomNav extends StatelessWidget {
     return NavigationBar(
       selectedIndex: selectedIndex == 0 ? 0 : (selectedIndex == modulesCount + 2 ? 2 : 1),
       onDestinationSelected: (index) {
-        if (index == 0) onItemSelected(0);
-        else if (index == 2) onItemSelected(modulesCount + 2);
-        else {
+        if (index == 0) {
+          onItemSelected(0);
+        } else if (index == 2) {
+          onItemSelected(modulesCount + 2);
+        } else {
           // If they click the middle item, we could open the drawer or something,
           // but for now let's just go to the first module or keep it as is.
           Scaffold.of(context).openDrawer();
@@ -1905,8 +1906,6 @@ IconData _getModuleIcon(AppModule module) {
       return Icons.support_agent_rounded;
     case AppModule.proyectos:
       return Icons.account_tree_rounded;
-    default:
-      return Icons.apps_rounded;
   }
 }
 

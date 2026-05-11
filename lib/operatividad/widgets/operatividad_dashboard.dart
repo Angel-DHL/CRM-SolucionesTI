@@ -80,6 +80,7 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
   int get _blockedActivities =>
       widget.activities.where((a) => a.status == OperStatus.blocked).length;
 
+  // ignore: unused_element
   int get _plannedActivities =>
       widget.activities.where((a) => a.status == OperStatus.planned).length;
 
