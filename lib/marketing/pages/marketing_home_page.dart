@@ -7,6 +7,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../models/marketing_enums.dart';
 import '../models/social_metrics.dart';
 import '../services/marketing_service.dart';
+import '../../core/services/ai_global_service.dart';
 import 'campaigns_list_page.dart';
 import 'campaign_form_page.dart';
 import 'audience_page.dart';
@@ -106,12 +107,21 @@ class _MarketingHomePageState extends State<MarketingHomePage> with SingleTicker
 // DASHBOARD TAB
 // ═══════════════════════════════════════════════════════════
 
-class _DashboardTab extends StatelessWidget {
+class _DashboardTab extends StatefulWidget {
   final Map<String, dynamic> stats;
   final bool loading;
   final VoidCallback onRefresh;
-
   const _DashboardTab({required this.stats, required this.loading, required this.onRefresh});
+  @override
+  State<_DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<_DashboardTab> {
+  Map<String, dynamic> get stats => widget.stats;
+  bool get loading => widget.loading;
+  VoidCallback get onRefresh => widget.onRefresh;
+  String? _aiAnalysis;
+  bool _aiLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +168,8 @@ class _DashboardTab extends StatelessWidget {
 
             // Plataformas sociales resumen
             _buildSocialOverview(context),
+            const SizedBox(height: AppDimensions.xl),
+            _buildAiPanel(),
           ],
         ),
       ),
@@ -301,6 +313,56 @@ class _DashboardTab extends StatelessWidget {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return n.toString();
+  }
+
+  Widget _buildAiPanel() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          const Color(0xFF6366F1).withValues(alpha: 0.06),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+        ]),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Análisis IA de Marketing', style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.w700)),
+            Text('Evalúa rendimiento de campañas y sugiere mejoras', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ])),
+          _aiLoading
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+              : FilledButton.icon(
+                  onPressed: () async {
+                    setState(() => _aiLoading = true);
+                    try {
+                      final result = await AiGlobalService.instance.analyzeCampaignPerformance(campaigns: []);
+                      if (mounted) setState(() { _aiAnalysis = result; _aiLoading = false; });
+                    } catch (e) {
+                      if (mounted) { setState(() => _aiLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error)); }
+                    }
+                  },
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: Text(_aiAnalysis == null ? 'Analizar' : 'Actualizar'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                ),
+        ]),
+        if (_aiAnalysis != null) ...[
+          const SizedBox(height: AppDimensions.md),
+          Container(width: double.infinity, padding: const EdgeInsets.all(AppDimensions.md),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: SelectableText(_aiAnalysis!, style: AppTextStyles.bodySmall.copyWith(height: 1.7))),
+        ],
+      ]),
+    );
   }
 }
 

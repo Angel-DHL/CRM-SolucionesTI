@@ -16,6 +16,7 @@ import '../services/project_service.dart';
 import '../services/project_task_service.dart';
 import '../services/project_transaction_service.dart';
 import '../services/project_report_service.dart';
+import '../../core/services/ai_global_service.dart';
 import 'project_form_page.dart';
 
 class ProjectDetailPage extends StatefulWidget {
@@ -98,6 +99,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_rounded), title: Text('Editar'))),
             const PopupMenuItem(value: 'report', child: ListTile(leading: Icon(Icons.picture_as_pdf_rounded), title: Text('Generar Reporte'))),
+            const PopupMenuItem(value: 'ai_risk', child: ListTile(leading: Icon(Icons.auto_awesome_rounded, color: Color(0xFF6366F1)), title: Text('✨ Análisis de Riesgo IA'))),
+            const PopupMenuItem(value: 'ai_report', child: ListTile(leading: Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6)), title: Text('✨ Reporte Ejecutivo IA'))),
             const PopupMenuItem(value: 'clone', child: ListTile(leading: Icon(Icons.copy_rounded), title: Text('Duplicar'))),
             const PopupMenuDivider(),
             ...ProjectStatus.values.where((s) => s != project.status).map((s) =>
@@ -492,10 +495,96 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
     } else if (action == 'clone') {
       await ProjectService.instance.cloneProject(project.id);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proyecto duplicado'), backgroundColor: AppColors.success));
+    } else if (action == 'ai_risk' || action == 'ai_report') {
+      _showAiDialog(project, action == 'ai_risk' ? 'risk' : 'report');
     } else if (action.startsWith('status_')) {
       final statusValue = action.replaceFirst('status_', '');
       final newStatus = ProjectStatusX.from(statusValue);
       await ProjectService.instance.changeStatus(project.id, newStatus);
     }
+  }
+
+  void _showAiDialog(Project project, String type) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _AiProjectDialog(project: project, type: type),
+    );
+  }
+}
+
+class _AiProjectDialog extends StatefulWidget {
+  final Project project;
+  final String type;
+  const _AiProjectDialog({required this.project, required this.type});
+  @override
+  State<_AiProjectDialog> createState() => _AiProjectDialogState();
+}
+
+class _AiProjectDialogState extends State<_AiProjectDialog> {
+  bool _loading = true;
+  String _result = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _analyze();
+  }
+
+  Future<void> _analyze() async {
+    try {
+      final tasks = await ProjectTaskService.instance.getProjectTasks(widget.project.id);
+      final txs = await ProjectTransactionService.instance.getTransactions(widget.project.id);
+
+      final projMap = {
+        'name': widget.project.nombre,
+        'value': widget.project.presupuesto,
+        'status': widget.project.status.label,
+        'paymentProgress': widget.project.progreso,
+        'startDate': widget.project.fechaInicio?.toString() ?? 'N/A',
+        'endDate': widget.project.fechaFinEstimada?.toString() ?? 'N/A',
+        'description': widget.project.descripcion,
+      };
+      final tasksMap = tasks.map((t) => {'title': t.titulo, 'status': t.status.label, 'progress': t.progreso}).toList();
+      final txMap = txs.map((t) => {'type': t.type.label, 'amount': t.monto, 'date': t.fechaTransaccion.toString()}).toList();
+
+      String result;
+      if (widget.type == 'risk') {
+        result = await AiGlobalService.instance.analyzeProjectRisk(project: projMap, tasks: tasksMap, transactions: txMap);
+      } else {
+        result = await AiGlobalService.instance.generateProjectReport(project: projMap, tasks: tasksMap, transactions: txMap);
+      }
+      if (mounted) setState(() { _result = result; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _result = 'Error: $e'; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.type == 'risk' ? '✨ Análisis de Riesgo IA' : '✨ Reporte Ejecutivo IA';
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg)),
+      title: Row(children: [
+        const Icon(Icons.auto_awesome_rounded, color: Color(0xFF6366F1), size: 22),
+        const SizedBox(width: 8),
+        Text(title, style: AppTextStyles.h4),
+      ]),
+      content: SizedBox(
+        width: 500,
+        height: 400,
+        child: _loading
+            ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Analizando con IA...'),
+              ]))
+            : SingleChildScrollView(
+                child: SelectableText(_result, style: AppTextStyles.bodySmall.copyWith(height: 1.7)),
+              ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+      ],
+    );
   }
 }

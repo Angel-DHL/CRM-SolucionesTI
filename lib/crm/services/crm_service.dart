@@ -427,6 +427,14 @@ class CrmService {
         });
   }
 
+  /// Obtiene historial de un contacto (one-shot para IA)
+  Future<List<CrmActivityLog>> getActivityLogs(String contactId) async {
+    final s = await _logsRef.where('contactId', isEqualTo: contactId).get();
+    final logs = s.docs.map(CrmActivityLog.fromDoc).toList();
+    logs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return logs;
+  }
+
   // ═══════════════════════════════════════════════════════════
   // ESTADÍSTICAS
   // ═══════════════════════════════════════════════════════════

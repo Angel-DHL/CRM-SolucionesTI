@@ -9,6 +9,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/responsive.dart';
 import '../../core/role.dart';
 import '../models/oper_activity.dart';
+import '../../core/services/ai_global_service.dart';
 
 import 'charts/collaborator_workload_chart.dart';
 import 'charts/compliance_gauge.dart';
@@ -41,6 +42,8 @@ class OperatividadDashboard extends StatefulWidget {
 class _OperatividadDashboardState extends State<OperatividadDashboard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
+  String? _aiWeeklySummary;
+  bool _aiLoading = false;
 
   @override
   void initState() {
@@ -184,6 +187,9 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
                 Expanded(child: _buildRecentActivitySection()),
               ],
             ),
+
+          SizedBox(height: isMobile ? AppDimensions.lg : AppDimensions.xl),
+          _buildAiWeeklySummary(),
         ],
       ),
     );
@@ -551,6 +557,64 @@ class _OperatividadDashboardState extends State<OperatividadDashboard>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAiWeeklySummary() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          const Color(0xFF6366F1).withValues(alpha: 0.06),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+        ]),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Resumen Semanal IA', style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.w700)),
+            Text('Análisis inteligente de la operatividad', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ])),
+          _aiLoading
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+              : FilledButton.icon(
+                  onPressed: () async {
+                    setState(() => _aiLoading = true);
+                    try {
+                      final now = DateTime.now();
+                      final data = widget.activities.map((a) => {
+                        'title': a.title,
+                        'status': a.status.label,
+                        'assignees': a.assigneesEmails.join(', '),
+                        'progress': a.progress,
+                        'overdue': a.plannedEndAt.isBefore(now) && a.status != OperStatus.done && a.status != OperStatus.verified,
+                      }).toList();
+                      final summary = await AiGlobalService.instance.generateWeeklySummary(activities: data);
+                      if (mounted) setState(() { _aiWeeklySummary = summary; _aiLoading = false; });
+                    } catch (e) {
+                      if (mounted) { setState(() => _aiLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error)); }
+                    }
+                  },
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: Text(_aiWeeklySummary == null ? 'Generar' : 'Actualizar'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                ),
+        ]),
+        if (_aiWeeklySummary != null) ...[
+          const SizedBox(height: AppDimensions.md),
+          Container(width: double.infinity, padding: const EdgeInsets.all(AppDimensions.md),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: SelectableText(_aiWeeklySummary!, style: AppTextStyles.bodySmall.copyWith(height: 1.7))),
+        ],
+      ]),
     );
   }
 }

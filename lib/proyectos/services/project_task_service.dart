@@ -128,6 +128,12 @@ class ProjectTaskService {
     );
   }
 
+  /// One-shot para obtener tareas (para IA)
+  Future<List<ProjectTask>> getProjectTasks(String projectId) async {
+    final snap = await _tasksCol(projectId).orderBy('orden').get();
+    return snap.docs.map((d) => ProjectTask.fromDoc(d, projectId)).toList();
+  }
+
   /// Stream de tareas agrupadas por estado (para Kanban)
   Stream<Map<TaskStatus, List<ProjectTask>>> streamTasksGrouped(String projectId) {
     return _tasksCol(projectId).orderBy('orden').snapshots().map((snap) {

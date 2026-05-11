@@ -8,6 +8,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/responsive.dart';
 import '../models/ventas_enums.dart';
 import '../services/ventas_service.dart';
+import '../../core/services/ai_global_service.dart';
 import 'quotes_list_page.dart';
 import 'orders_list_page.dart';
 import 'quote_form_page.dart';
@@ -26,6 +27,8 @@ class _VentasHomePageState extends State<VentasHomePage> {
   VentasView _currentView = VentasView.dashboard;
   Map<String, dynamic>? _stats;
   bool _loadingStats = true;
+  String? _aiForecast;
+  bool _aiLoading = false;
 
   final _nf = NumberFormat.currency(locale: 'es_MX', symbol: '\$', decimalDigits: 0);
 
@@ -371,8 +374,63 @@ class _VentasHomePageState extends State<VentasHomePage> {
                 }).toList(),
               ),
             ),
+
+          // AI Forecast Panel
+          const SizedBox(height: AppDimensions.xl),
+          _buildAiForecast(),
         ],
       ),
+    );
+  }
+
+  Widget _buildAiForecast() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          const Color(0xFF6366F1).withValues(alpha: 0.06),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+        ]),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Pronóstico IA de Ventas', style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.w700)),
+            Text('Análisis predictivo basado en oportunidades', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ])),
+          _aiLoading
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+              : FilledButton.icon(
+                  onPressed: () async {
+                    setState(() => _aiLoading = true);
+                    try {
+                      final forecast = await AiGlobalService.instance.generateSalesForecast(
+                        opportunities: [], recentOrders: []);
+                      if (mounted) setState(() { _aiForecast = forecast; _aiLoading = false; });
+                    } catch (e) {
+                      if (mounted) { setState(() => _aiLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error)); }
+                    }
+                  },
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: Text(_aiForecast == null ? 'Generar' : 'Actualizar'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                ),
+        ]),
+        if (_aiForecast != null) ...[
+          const SizedBox(height: AppDimensions.md),
+          Container(width: double.infinity, padding: const EdgeInsets.all(AppDimensions.md),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: SelectableText(_aiForecast!, style: AppTextStyles.bodySmall.copyWith(height: 1.7))),
+        ],
+      ]),
     );
   }
 

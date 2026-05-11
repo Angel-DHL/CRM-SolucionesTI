@@ -2,6 +2,7 @@ import 'package:crm_solucionesti/crm/pages/crm_home_page.dart';
 import 'package:crm_solucionesti/inventory/pages/inventory_home_page.dart';
 import 'package:crm_solucionesti/marketing/pages/marketing_home_page.dart';
 import 'package:crm_solucionesti/proyectos/pages/project_home_page.dart';
+import 'package:crm_solucionesti/soporte/pages/soporte_home_page.dart';
 import 'package:crm_solucionesti/ventas/pages/ventas_home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ import '../home/profile_settings_page.dart';
 import '../operatividad/pages/operatividad_page.dart';
 import '../core/services/role_service.dart';
 import '../core/firebase_helper.dart';
+import 'widgets/executive_dashboard.dart';
 import 'dart:async';
 
 class HomePage extends StatefulWidget {
@@ -249,6 +251,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case AppModule.proyectos:
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProjectHomePage()));
         break;
+      case AppModule.soporte:
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SoporteHomePage()));
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Módulo ${module.title} en desarrollo')),
@@ -306,25 +311,11 @@ class _MainScaffold extends StatelessWidget {
 
     Widget content;
     if (selectedIndex == 0) {
-      content = _DashboardView(
-        role: role,
-        controller: statsController,
-        activeActivities: activeActivities,
-        inventoryCount: inventoryCount,
-        leadsCount: leadsCount,
-        loading: statsLoading,
-      );
+      content = const ExecutiveDashboard();
     } else if (selectedIndex <= modules.length) {
       // Los módulos se abren directamente via Navigator.push,
       // así que mostramos el Dashboard como vista base.
-      content = _DashboardView(
-        role: role,
-        controller: statsController,
-        activeActivities: activeActivities,
-        inventoryCount: inventoryCount,
-        leadsCount: leadsCount,
-        loading: statsLoading,
-      );
+      content = const ExecutiveDashboard();
       // Auto-navegar al módulo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         onModuleTap(modules[selectedIndex - 1]);

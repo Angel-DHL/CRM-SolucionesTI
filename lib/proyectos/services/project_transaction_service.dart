@@ -211,6 +211,12 @@ class ProjectTransactionService {
     );
   }
 
+  /// One-shot para obtener transacciones (para IA)
+  Future<List<ProjectTransaction>> getTransactions(String projectId) async {
+    final snap = await _txnCol(projectId).orderBy('fechaTransaccion', descending: true).get();
+    return snap.docs.map((d) => ProjectTransaction.fromDoc(d, projectId)).toList();
+  }
+
   // ═══════════════════════════════════════════════════════════
   // RESUMEN FINANCIERO
   // ═══════════════════════════════════════════════════════════

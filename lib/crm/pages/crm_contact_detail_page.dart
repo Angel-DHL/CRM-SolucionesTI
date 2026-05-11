@@ -10,6 +10,7 @@ import '../models/crm_contact.dart';
 import '../models/crm_activity_log.dart';
 import '../models/crm_enums.dart';
 import '../services/crm_service.dart';
+import '../../core/services/ai_global_service.dart';
 import '../widgets/crm_status_chip.dart';
 import '../widgets/crm_activity_tile.dart';
 import 'crm_contact_form_page.dart';
@@ -44,10 +45,47 @@ class CrmContactDetailPage extends StatelessWidget {
   }
 }
 
-class _ContactDetailView extends StatelessWidget {
+class _ContactDetailView extends StatefulWidget {
   final CrmContact contact;
-
   const _ContactDetailView({required this.contact});
+  @override
+  State<_ContactDetailView> createState() => _ContactDetailViewState();
+}
+
+class _ContactDetailViewState extends State<_ContactDetailView> {
+  CrmContact get contact => widget.contact;
+  String? _aiSummary;
+  bool _aiLoading = false;
+
+  Future<void> _generateAiSummary() async {
+    setState(() => _aiLoading = true);
+    try {
+      final logs = await CrmService.instance.getActivityLogs(contact.id);
+      final logsData = logs.map((l) => {
+        'type': l.type.label,
+        'description': l.descripcion,
+        'date': '${l.createdAt.day}/${l.createdAt.month}/${l.createdAt.year}',
+      }).toList();
+      final summary = await AiGlobalService.instance.generateContactSummary(
+        contact: {
+          'name': contact.nombreCompleto,
+          'company': contact.empresa ?? 'N/A',
+          'email': contact.email,
+          'phone': contact.telefono,
+          'stage': contact.status.label,
+          'source': contact.source.label,
+        },
+        activityLogs: logsData,
+        quotes: [],
+      );
+      if (mounted) setState(() => _aiSummary = summary);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error IA: $e'), backgroundColor: AppColors.error));
+    } finally {
+      if (mounted) setState(() => _aiLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +256,8 @@ class _ContactDetailView extends StatelessWidget {
           const SizedBox(height: AppDimensions.lg),
           _buildOriginalMessage(),
         ],
+        const SizedBox(height: AppDimensions.lg),
+        _buildAiPanel(),
       ],
     );
   }
@@ -519,6 +559,57 @@ class _ContactDetailView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // AI PANEL
+  // ══════════════════════════════════════════════════════════
+
+  Widget _buildAiPanel() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.md),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          const Color(0xFF6366F1).withValues(alpha: 0.06),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+        ]),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.auto_awesome_rounded, size: 18, color: Color(0xFF6366F1)),
+          const SizedBox(width: 8),
+          Text('Análisis IA', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFF6366F1))),
+          const Spacer(),
+          _aiLoading
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : TextButton.icon(
+                  onPressed: _generateAiSummary,
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 14),
+                  label: Text(_aiSummary == null ? 'Analizar' : 'Actualizar'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF6366F1),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+        ]),
+        if (_aiSummary != null) ...[
+          const SizedBox(height: AppDimensions.sm),
+          SelectableText(
+            _aiSummary!,
+            style: AppTextStyles.bodySmall.copyWith(height: 1.6, color: AppColors.textSecondary),
+          ),
+        ] else
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppDimensions.sm),
+            child: Text(
+              'Genera un resumen inteligente de este contacto con IA',
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint, fontSize: 11),
+            ),
+          ),
+      ]),
     );
   }
 

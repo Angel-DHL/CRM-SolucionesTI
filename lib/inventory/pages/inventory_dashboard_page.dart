@@ -8,6 +8,7 @@ import '../../core/theme/responsive.dart';
 import '../../core/role.dart';
 import '../models/inventory_item.dart';
 import '../services/inventory_service.dart';
+import '../../core/services/ai_global_service.dart';
 import 'inventory_form_page.dart';
 
 class InventoryDashboardPage extends StatefulWidget {
@@ -24,6 +25,8 @@ class _InventoryDashboardPageState extends State<InventoryDashboardPage> {
 
   bool _isLoading = true;
   String? _error;
+  String? _aiAnalysis;
+  bool _aiLoading = false;
 
   // Stats
   int _totalItems = 0;
@@ -141,6 +144,8 @@ class _InventoryDashboardPageState extends State<InventoryDashboardPage> {
             _buildAlertsSection(),
             const SizedBox(height: 32),
             _buildRecentItems(),
+            const SizedBox(height: 32),
+            _buildAiPanel(),
             const SizedBox(height: 24),
           ],
         ),
@@ -818,6 +823,64 @@ class _InventoryDashboardPageState extends State<InventoryDashboardPage> {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+
+  Widget _buildAiPanel() {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          const Color(0xFF6366F1).withValues(alpha: 0.06),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+        ]),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Análisis IA de Inventario', style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.w700)),
+            Text('Predicciones de stock, alertas y recomendaciones', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ])),
+          _aiLoading
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+              : FilledButton.icon(
+                  onPressed: () async {
+                    setState(() => _aiLoading = true);
+                    try {
+                      final result = await AiGlobalService.instance.analyzeInventory(
+                        items: _categoryStock.map((c) => {
+                          'name': c.categoryName,
+                          'stock': c.totalStock,
+                          'minStock': 5,
+                          'category': c.categoryName,
+                        }).toList(),
+                        movements: [],
+                      );
+                      if (mounted) setState(() { _aiAnalysis = result; _aiLoading = false; });
+                    } catch (e) {
+                      if (mounted) { setState(() => _aiLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error)); }
+                    }
+                  },
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: Text(_aiAnalysis == null ? 'Analizar' : 'Actualizar'),
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+                ),
+        ]),
+        if (_aiAnalysis != null) ...[
+          const SizedBox(height: AppDimensions.md),
+          Container(width: double.infinity, padding: const EdgeInsets.all(AppDimensions.md),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            child: SelectableText(_aiAnalysis!, style: AppTextStyles.bodySmall.copyWith(height: 1.7))),
+        ],
+      ]),
     );
   }
 }
