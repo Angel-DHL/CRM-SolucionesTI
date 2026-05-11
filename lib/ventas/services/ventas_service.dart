@@ -475,8 +475,39 @@ class VentasService {
     final allQuotes = allQuotesSnap.docs.map(SaleQuote.fromDoc).toList();
     final cotsPorVencer = allQuotes.where((q) => q.porVencer).toList();
 
+    // ═══ INTEGRACIÓN CON PROYECTOS ═══
+    final projectsSnap = await FirebaseHelper.projects.get();
+    double ventasProyectos = 0;
+    final proyectosActivos = <Map<String, dynamic>>[];
+
+    for (final doc in projectsSnap.docs) {
+      final d = doc.data();
+      final status = d['status'] as String?;
+      final totalIng = (d['totalIngresos'] ?? 0).toDouble();
+      final valor = (d['valorProyecto'] ?? 0).toDouble();
+      final progreso = (d['progreso'] ?? 0) as int;
+
+      ventasProyectos += totalIng;
+
+      // Solo incluir proyectos no cancelados
+      if (status != 'cancelado') {
+        proyectosActivos.add({
+          'id': doc.id,
+          'folio': d['folio'] ?? '',
+          'nombre': d['nombre'] ?? '',
+          'valor': valor,
+          'ingresos': totalIng,
+          'egresos': (d['totalEgresos'] ?? 0).toDouble(),
+          'progreso': progreso,
+          'status': status,
+          'clienteNombre': d['clienteNombre'] ?? '',
+        });
+      }
+    }
+
     return {
       'ventasMes': ventasMes,
+      'ventasProyectos': ventasProyectos,
       'cotizacionesPendientes': cotizacionesPendientes,
       'ordenesPorCobrar': ordenesPorCobrar,
       'tasaConversion': tasaConversion,
@@ -486,6 +517,7 @@ class VentasService {
       'valorPipeline': valorPipeline,
       'oppsPorStatus': oppsPorStatus,
       'cotizacionesPorVencer': cotsPorVencer.length,
+      'proyectosActivos': proyectosActivos,
       'topProducts': topProducts.take(5).map((e) => {
         'sku': e.key,
         'nombre': productNames[e.key] ?? e.key,

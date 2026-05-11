@@ -242,5 +242,39 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // MÓDULO DE PROYECTOS
+    // ═══════════════════════════════════════════════════════════
+
+    match /projects/{projectId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      allow delete: if isAdmin();
+
+      // Subcolección de tareas del proyecto
+      match /project_tasks/{taskId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+        allow delete: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+      }
+
+      // Subcolección de transacciones financieras
+      match /project_transactions/{transactionId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && (isAdmin() || isSoporteSistemas());
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /project_audit_logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /project_counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
   }
 }

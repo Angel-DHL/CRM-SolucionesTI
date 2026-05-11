@@ -176,6 +176,7 @@ class _VentasHomePageState extends State<VentasHomePage> {
 
     final stats = _stats ?? {};
     final ventasMes = (stats['ventasMes'] ?? 0.0) as double;
+    final ventasProyectos = (stats['ventasProyectos'] ?? 0.0) as double;
     final cotPendientes = (stats['cotizacionesPendientes'] ?? 0) as int;
     final porCobrar = (stats['ordenesPorCobrar'] ?? 0.0) as double;
     final tasa = (stats['tasaConversion'] ?? 0.0) as double;
@@ -184,6 +185,7 @@ class _VentasHomePageState extends State<VentasHomePage> {
     final cotsPorVencer = (stats['cotizacionesPorVencer'] ?? 0) as int;
     final topProducts = (stats['topProducts'] ?? []) as List;
     final oppsPorStatus = (stats['oppsPorStatus'] ?? <String, int>{}) as Map<String, dynamic>;
+    final proyectosActivos = (stats['proyectosActivos'] ?? []) as List;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppDimensions.lg),
@@ -199,11 +201,12 @@ class _VentasHomePageState extends State<VentasHomePage> {
             runSpacing: AppDimensions.md,
             children: [
               _StatCard(icon: Icons.attach_money_rounded, title: 'Ventas del mes', value: _nf.format(ventasMes), color: AppColors.success),
+              _StatCard(icon: Icons.business_center_rounded, title: 'Ingresos por proyectos', value: _nf.format(ventasProyectos), color: const Color(0xFF7E57C2)),
               _StatCard(icon: Icons.request_quote_rounded, title: 'Cotizaciones pendientes', value: '$cotPendientes', color: AppColors.warning),
               _StatCard(icon: Icons.account_balance_wallet_rounded, title: 'Por cobrar', value: _nf.format(porCobrar), color: AppColors.error),
               _StatCard(icon: Icons.trending_up_rounded, title: 'Tasa de conversión', value: '${tasa.toStringAsFixed(1)}%', color: AppColors.primary),
               _StatCard(icon: Icons.lightbulb_rounded, title: 'Oportunidades activas', value: '$oppsActivas', color: AppColors.info),
-              _StatCard(icon: Icons.show_chart_rounded, title: 'Valor del pipeline', value: _nf.format(valorPipeline), color: const Color(0xFF7E57C2)),
+              _StatCard(icon: Icons.show_chart_rounded, title: 'Valor del pipeline', value: _nf.format(valorPipeline), color: const Color(0xFF26A69A)),
             ],
           ),
 
@@ -234,6 +237,77 @@ class _VentasHomePageState extends State<VentasHomePage> {
                     onPressed: () => setState(() => _currentView = VentasView.cotizaciones),
                     child: const Text('Ver'),
                   ),
+                ],
+              ),
+            ),
+          ],
+
+          // ═══ PROYECTOS ACTIVOS ═══
+          if (proyectosActivos.isNotEmpty) ...[
+            const SizedBox(height: AppDimensions.xl),
+            Row(children: [
+              const Icon(Icons.business_center_rounded, color: Color(0xFF7E57C2), size: 20),
+              const SizedBox(width: 8),
+              Text('Ventas por Proyecto', style: AppTextStyles.h4),
+              const Spacer(),
+              Text('${proyectosActivos.length} proyectos', style: AppTextStyles.caption),
+            ]),
+            const SizedBox(height: AppDimensions.md),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md, vertical: AppDimensions.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusMd)),
+                    ),
+                    child: Row(children: [
+                      Expanded(flex: 3, child: Text('Proyecto', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w600))),
+                      Expanded(flex: 2, child: Text('Valor', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+                      Expanded(flex: 2, child: Text('Cobrado', style: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+                      const SizedBox(width: 100, child: Text('Avance', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
+                    ]),
+                  ),
+                  // Rows
+                  ...proyectosActivos.map((p) {
+                    final valor = (p['valor'] as double?) ?? 0;
+                    final ingresos = (p['ingresos'] as double?) ?? 0;
+                    final progreso = (p['progreso'] as int?) ?? 0;
+                    final pct = progreso / 100;
+                    final color = progreso >= 100
+                        ? AppColors.success
+                        : progreso >= 50
+                            ? AppColors.primary
+                            : AppColors.warning;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md, vertical: AppDimensions.sm),
+                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.divider))),
+                      child: Row(children: [
+                        Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(p['nombre'] ?? '', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), overflow: TextOverflow.ellipsis),
+                          Text('${p['folio']} • ${p['clienteNombre'] ?? ''}', style: const TextStyle(fontSize: 10, color: AppColors.textHint), overflow: TextOverflow.ellipsis),
+                        ])),
+                        Expanded(flex: 2, child: Text(_nf.format(valor), style: const TextStyle(fontSize: 12), textAlign: TextAlign.right)),
+                        Expanded(flex: 2, child: Text(_nf.format(ingresos), style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+                        SizedBox(width: 100, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          SizedBox(width: 50, child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(value: pct.clamp(0.0, 1.0), backgroundColor: AppColors.divider, valueColor: AlwaysStoppedAnimation(color), minHeight: 6),
+                          )),
+                          const SizedBox(width: 4),
+                          Text('$progreso%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+                        ])),
+                      ]),
+                    );
+                  }),
                 ],
               ),
             ),

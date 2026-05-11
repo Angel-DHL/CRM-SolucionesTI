@@ -101,4 +101,17 @@ class FirebaseHelper {
 
   static CollectionReference<Map<String, dynamic>> get marketingCounters =>
       db.collection('marketing_counters');
+
+  // ═══════════════════════════════════════════════════════════
+  // COLECCIONES DE PROYECTOS
+  // ═══════════════════════════════════════════════════════════
+
+  static CollectionReference<Map<String, dynamic>> get projects =>
+      db.collection('projects');
+
+  static CollectionReference<Map<String, dynamic>> get projectAuditLogs =>
+      db.collection('project_audit_logs');
+
+  static CollectionReference<Map<String, dynamic>> get projectCounters =>
+      db.collection('project_counters');
 }
