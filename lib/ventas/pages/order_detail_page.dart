@@ -81,7 +81,7 @@ class _OrderContent extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Color(order.status.colorValue).withValues(alpha: 0.1),
+                color: Color(order.status.colorValue).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
               ),
               child: Text('${order.status.emoji} ${order.status.label}',
@@ -91,7 +91,7 @@ class _OrderContent extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Color(order.paymentStatus.colorValue).withValues(alpha: 0.1),
+                color: Color(order.paymentStatus.colorValue).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
               ),
               child: Text(order.paymentStatus.label,

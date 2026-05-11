@@ -228,28 +228,34 @@ class _ProjectHomePageState extends State<ProjectHomePage> {
   }
 
   Widget _buildQuickStats() {
-    return Container(
-      margin: const EdgeInsets.all(AppDimensions.md),
-      padding: const EdgeInsets.all(AppDimensions.md),
-      decoration: BoxDecoration(
-        color: AppColors.primarySurface,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(children: [
-            const Icon(Icons.insights_rounded, size: 16, color: AppColors.primary),
-            const SizedBox(width: AppDimensions.xs),
-            Text('Resumen rápido', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-          ]),
-          const SizedBox(height: AppDimensions.sm),
-          _QuickStatRow(label: 'Activos', value: '-'),
-          _QuickStatRow(label: 'Atrasados', value: '-', isWarning: true),
-          _QuickStatRow(label: 'Completados', value: '-'),
-        ],
-      ),
+    return StreamBuilder<ProjectStats>(
+      stream: ProjectService.instance.streamStats(),
+      builder: (context, snap) {
+        final stats = snap.data ?? const ProjectStats();
+        return Container(
+          margin: const EdgeInsets.all(AppDimensions.md),
+          padding: const EdgeInsets.all(AppDimensions.md),
+          decoration: BoxDecoration(
+            color: AppColors.primarySurface,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(children: [
+                const Icon(Icons.insights_rounded, size: 16, color: AppColors.primary),
+                const SizedBox(width: AppDimensions.xs),
+                Text('Resumen Proyectos', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ]),
+              const SizedBox(height: AppDimensions.sm),
+              _QuickStatRow(label: 'Activos', value: stats.activosCount.toString()),
+              _QuickStatRow(label: 'Atrasados', value: stats.proyectosAtrasados.toString(), isWarning: stats.proyectosAtrasados > 0),
+              _QuickStatRow(label: 'Completados', value: stats.completadosCount.toString()),
+            ],
+          ),
+        );
+      }
     );
   }
 

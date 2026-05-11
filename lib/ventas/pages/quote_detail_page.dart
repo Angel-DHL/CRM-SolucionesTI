@@ -115,7 +115,7 @@ class _QuoteDetailContentState extends State<_QuoteDetailContent> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Color(quote.status.colorValue).withValues(alpha: 0.1),
+                color: Color(quote.status.colorValue).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
               ),
               child: Text('${quote.status.emoji} ${quote.status.label}',

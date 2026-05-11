@@ -272,7 +272,7 @@ class _SoporteHomePageState extends State<SoporteHomePage> {
         SoporteView.dashboard => const SupportDashboardPage(),
         SoporteView.cases => const CasesListPage(),
         SoporteView.knowledge => const KnowledgeBasePage(),
-        SoporteView.manuals => const ManualsPage(),
+        SoporteView.manuals => ManualsPage(role: _role),
         SoporteView.aiInsights => const AiInsightsPage(),
       },
     );

@@ -120,7 +120,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
       child: Row(children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: project.status.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+          decoration: BoxDecoration(color: project.status.color.withOpacity(0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(project.status.icon, size: 16, color: project.status.color),
             const SizedBox(width: 4),
@@ -293,7 +293,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
           ],
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(color: task.priority.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
+            decoration: BoxDecoration(color: task.priority.color.withOpacity(0.1), borderRadius: BorderRadius.circular(3)),
             child: Text(task.priority.label, style: TextStyle(fontSize: 10, color: task.priority.color)),
           ),
         ]),
@@ -304,7 +304,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
           ]))).toList(),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: task.status.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+            decoration: BoxDecoration(color: task.status.color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
             child: Text(task.status.label, style: TextStyle(fontSize: 11, color: task.status.color, fontWeight: FontWeight.w500)),
           ),
         ),
@@ -383,7 +383,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: txn.type.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: txn.type.color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
           child: Icon(txn.type.icon, color: txn.type.color, size: 20),
         ),
         title: Text(txn.concepto, style: const TextStyle(fontWeight: FontWeight.w500)),
@@ -463,7 +463,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> with SingleTicker
             final log = logs[i];
             return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Column(children: [
-                Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: log.actionColor.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(log.actionIcon, size: 16, color: log.actionColor)),
+                Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: log.actionColor.withOpacity(0.1), shape: BoxShape.circle), child: Icon(log.actionIcon, size: 16, color: log.actionColor)),
                 if (i < logs.length - 1) Container(width: 2, height: 30, color: AppColors.divider),
               ]),
               const SizedBox(width: AppDimensions.md),

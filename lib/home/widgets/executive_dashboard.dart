@@ -135,12 +135,12 @@ class _ExecutiveDashboardState extends State<ExecutiveDashboard> {
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: kpi.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+            decoration: BoxDecoration(color: kpi.color.withOpacity(0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
             child: Icon(kpi.icon, color: kpi.color, size: 20),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(color: kpi.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(color: kpi.color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
             child: Text(kpi.subtitle, style: TextStyle(fontSize: 9, color: kpi.color, fontWeight: FontWeight.w600)),
           ),
         ]),
@@ -344,7 +344,7 @@ class _ExecutiveDashboardState extends State<ExecutiveDashboard> {
           Text(title, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700)),
           const Spacer(),
           Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
             child: Text('${items.length}', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: AppDimensions.sm),
@@ -361,7 +361,7 @@ class _ExecutiveDashboardState extends State<ExecutiveDashboard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
+      decoration: BoxDecoration(color: color.withOpacity(0.04), borderRadius: BorderRadius.circular(AppDimensions.radiusMd)),
       child: Row(children: [
         Container(width: 4, height: 32, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 10),
@@ -379,9 +379,9 @@ class _ExecutiveDashboardState extends State<ExecutiveDashboard> {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [const Color(0xFF6366F1).withValues(alpha: 0.06), const Color(0xFF8B5CF6).withValues(alpha: 0.06)]),
+        gradient: LinearGradient(colors: [const Color(0xFF6366F1).withOpacity(0.06), const Color(0xFF8B5CF6).withOpacity(0.06)]),
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [

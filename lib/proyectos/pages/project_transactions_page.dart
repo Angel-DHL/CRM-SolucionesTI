@@ -33,7 +33,7 @@ class _ProjectTransactionsPageState extends State<ProjectTransactionsPage> {
       Expanded(
         child: _selectedProjectId == null
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.account_balance_wallet_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
+                Icon(Icons.account_balance_wallet_rounded, size: 64, color: AppColors.textHint.withOpacity(0.3)),
                 const SizedBox(height: AppDimensions.md),
                 Text('Selecciona un proyecto', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
               ]))
@@ -116,7 +116,7 @@ class _ProjectTransactionsPageState extends State<ProjectTransactionsPage> {
               child: ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: t.type.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: t.type.color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                   child: Icon(t.type.icon, color: t.type.color, size: 20),
                 ),
                 title: Text(t.concepto, style: const TextStyle(fontWeight: FontWeight.w500)),

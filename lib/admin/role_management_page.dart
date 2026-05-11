@@ -146,7 +146,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: role.id == 'admin' ? AppColors.warning.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
+                              color: role.id == 'admin' ? AppColors.warning.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(role.id == 'admin' ? Icons.admin_panel_settings : Icons.shield_outlined,
@@ -238,8 +238,8 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
               final level = _currentPermissions[module.id] ?? PermissionLevel.none;
               return Card(elevation: 0, margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                  side: BorderSide(color: level == PermissionLevel.none ? AppColors.divider : _permColor(level).withValues(alpha: 0.3))),
-                color: level == PermissionLevel.none ? null : _permColor(level).withValues(alpha: 0.03),
+                  side: BorderSide(color: level == PermissionLevel.none ? AppColors.divider : _permColor(level).withOpacity(0.3))),
+                color: level == PermissionLevel.none ? null : _permColor(level).withOpacity(0.03),
                 child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(children: [
                     Icon(_moduleIcon(module), size: 20, color: level == PermissionLevel.none ? AppColors.textHint : _permColor(level)),

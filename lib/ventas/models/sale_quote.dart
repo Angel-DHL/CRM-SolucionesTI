@@ -200,7 +200,7 @@ class SaleQuote {
     }
 
     final itemsList = (d['items'] as List<dynamic>?)
-        ?.map((i) => SaleQuoteItem.fromMap(i as Map<String, dynamic>))
+        ?.map((i) => SaleQuoteItem.fromMap(Map<String, dynamic>.from(i as Map)))
         .toList() ?? [];
 
     return SaleQuote(

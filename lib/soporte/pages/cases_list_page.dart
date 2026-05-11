@@ -109,7 +109,7 @@ class _CasesListPageState extends State<CasesListPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.confirmation_number_outlined, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
+                      Icon(Icons.confirmation_number_outlined, size: 64, color: AppColors.textHint.withOpacity(0.3)),
                       const SizedBox(height: AppDimensions.md),
                       Text('No hay casos', style: AppTextStyles.h4.copyWith(color: AppColors.textHint)),
                       const SizedBox(height: AppDimensions.sm),
@@ -195,7 +195,7 @@ class _CaseCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: caso.status.color.withValues(alpha: 0.1),
+                      color: caso.status.color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                     ),
                     child: Row(
@@ -229,7 +229,7 @@ class _CaseCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
-                      color: caso.priority.color.withValues(alpha: 0.1),
+                      color: caso.priority.color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                     ),
                     child: Row(

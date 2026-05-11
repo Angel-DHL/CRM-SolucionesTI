@@ -42,6 +42,12 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await NotificationService.initialize();
 
+  // Capturar errores de Flutter y mostrarlos en pantalla (Diagnóstico)
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter Error: ${details.exception}');
+  };
+
   runApp(const MyApp());
 }
 
@@ -60,6 +66,21 @@ class MyApp extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
       ),
       home: const AuthGate(),
+      builder: (context, widget) {
+        ErrorWidget.builder = (details) {
+          return Material(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              color: Colors.red.shade900,
+              child: SelectableText(
+                'Error Detectado:\n\n${details.exception}\n\nStack:\n${details.stack}',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+              ),
+            ),
+          );
+        };
+        return widget!;
+      },
     );
   }
 }

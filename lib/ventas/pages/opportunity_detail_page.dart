@@ -101,7 +101,7 @@ class _OppDetailContent extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                 ),
                 child: Text('${opp.status.emoji} ${opp.status.label}',
@@ -137,7 +137,7 @@ class _OppDetailContent extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppDimensions.md),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
         ),
         child: Column(

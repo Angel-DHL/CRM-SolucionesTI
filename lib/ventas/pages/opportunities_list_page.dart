@@ -72,7 +72,7 @@ class _OpportunitiesListPageState extends State<OpportunitiesListPage> {
         selected: selected,
         onSelected: (_) => setState(() => _filterStatus = status),
         selectedColor: status != null
-            ? Color(status.colorValue).withValues(alpha: 0.2)
+            ? Color(status.colorValue).withOpacity(0.2)
             : AppColors.primarySurface,
         checkmarkColor: status != null ? Color(status.colorValue) : AppColors.primary,
         labelStyle: TextStyle(
@@ -104,7 +104,7 @@ class _OpportunitiesListPageState extends State<OpportunitiesListPage> {
                   Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                     ),
                     child: Center(child: Text(opp.status.emoji, style: const TextStyle(fontSize: 18))),
@@ -121,7 +121,7 @@ class _OpportunitiesListPageState extends State<OpportunitiesListPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.1),
+                                color: statusColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                               ),
                               child: Text(opp.status.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),

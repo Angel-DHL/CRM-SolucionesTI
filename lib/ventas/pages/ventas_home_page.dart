@@ -221,7 +221,7 @@ class _VentasHomePageState extends State<VentasHomePage> {
               decoration: BoxDecoration(
                 color: AppColors.warningLight,
                 borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
@@ -388,11 +388,11 @@ class _VentasHomePageState extends State<VentasHomePage> {
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [
-          const Color(0xFF6366F1).withValues(alpha: 0.06),
-          const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+          const Color(0xFF6366F1).withOpacity(0.06),
+          const Color(0xFF8B5CF6).withOpacity(0.06),
         ]),
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -535,7 +535,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
             ),
             child: Icon(icon, size: 20, color: color),

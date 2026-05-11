@@ -56,7 +56,7 @@ class QuotesListPage extends StatelessWidget {
                 leading: Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(
-                    color: Color(q.status.colorValue).withValues(alpha: 0.1),
+                    color: Color(q.status.colorValue).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                   ),
                   child: Center(child: Text(q.status.emoji, style: const TextStyle(fontSize: 20))),
@@ -68,7 +68,7 @@ class QuotesListPage extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Color(q.status.colorValue).withValues(alpha: 0.1),
+                        color: Color(q.status.colorValue).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                       ),
                       child: Text(q.status.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(q.status.colorValue))),

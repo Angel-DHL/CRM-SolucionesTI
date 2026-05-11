@@ -92,7 +92,7 @@ class _ProjectTimelinePageState extends State<ProjectTimelinePage> {
         final logs = snap.data ?? [];
         if (logs.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.timeline_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
+            Icon(Icons.timeline_rounded, size: 64, color: AppColors.textHint.withOpacity(0.3)),
             const SizedBox(height: AppDimensions.md),
             Text(
               _selectedProjectId != null
@@ -136,7 +136,7 @@ class _ProjectTimelinePageState extends State<ProjectTimelinePage> {
                   SizedBox(width: 40, child: Column(children: [
                     Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: log.actionColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: log.actionColor.withOpacity(0.1), shape: BoxShape.circle),
                       child: Icon(log.actionIcon, size: 14, color: log.actionColor),
                     ),
                   ])),

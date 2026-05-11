@@ -80,16 +80,24 @@ class UserRole {
     },
   );
 
+  static const UserRole guest = UserRole(
+    id: 'guest',
+    label: 'Invitado',
+    permissions: {},
+  );
+
   String get claim => id;
 
   static UserRole fromMap(Map<String, dynamic> map) {
-    final permsMap = map['permissions'] as Map<String, dynamic>? ?? {};
+    final permsMap = map['permissions'] != null 
+        ? Map<String, dynamic>.from(map['permissions'] as Map) 
+        : <String, dynamic>{};
     return UserRole(
       id: map['id'] ?? '',
       label: map['label'] ?? '',
       permissions: permsMap.map(
         (key, value) =>
-            MapEntry(key, PermissionLevel.fromString(value.toString())),
+            MapEntry(key, PermissionLevel.fromString(value?.toString())),
       ),
     );
   }
@@ -111,7 +119,7 @@ class UserRole {
       case 'soporte_sistemas':
         return UserRole.soporteSistemas;
       default:
-        return UserRole.soporteTecnico;
+        return UserRole.guest;
     }
   }
 

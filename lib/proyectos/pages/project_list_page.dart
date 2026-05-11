@@ -96,7 +96,6 @@ class _ProjectListPageState extends State<ProjectListPage> {
               icon: const Icon(Icons.clear_rounded, size: 16),
               label: const Text('Limpiar'),
             ),
-          const Spacer(),
           FilledButton.icon(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProjectFormPage())),
             icon: const Icon(Icons.add_rounded, size: 18),
@@ -134,20 +133,37 @@ class _ProjectListPageState extends State<ProjectListPage> {
     return StreamBuilder<List<Project>>(
       stream: ProjectService.instance.streamProjects(filters: _filters),
       builder: (context, snap) {
+        if (snap.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
+                const SizedBox(height: 16),
+                Text('Error al cargar proyectos', style: AppTextStyles.h4),
+                const SizedBox(height: 8),
+                Text(snap.error.toString(), style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+              ],
+            ),
+          );
+        }
+
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final projects = snap.data ?? [];
         if (projects.isEmpty) {
-          return Center(child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder_open_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
-              const SizedBox(height: AppDimensions.md),
-              Text('No se encontraron proyectos', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
-            ],
-          ));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.folder_open_rounded, size: 64, color: AppColors.textHint.withOpacity(0.3)),
+                const SizedBox(height: 16),
+                Text('No se encontraron proyectos', style: AppTextStyles.h4.copyWith(color: AppColors.textHint)),
+              ],
+            ),
+          );
         }
 
         return ListView.builder(
@@ -178,7 +194,7 @@ class _ProjectCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        side: BorderSide(color: project.estaAtrasado ? AppColors.error.withValues(alpha: 0.3) : AppColors.divider),
+        side: BorderSide(color: project.estaAtrasado ? AppColors.error.withOpacity(0.3) : AppColors.divider),
       ),
       child: InkWell(
         onTap: onTap,
@@ -193,7 +209,7 @@ class _ProjectCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: project.status.color.withValues(alpha: 0.1),
+                    color: project.status.color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -206,7 +222,7 @@ class _ProjectCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: project.type.color.withValues(alpha: 0.1),
+                    color: project.type.color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                   ),
                   child: Text(project.type.label, style: TextStyle(fontSize: 10, color: project.type.color, fontWeight: FontWeight.w500)),

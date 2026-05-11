@@ -33,7 +33,7 @@ class _ProjectTasksPageState extends State<ProjectTasksPage> {
       Expanded(
         child: _selectedProjectId == null
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.task_alt_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
+                Icon(Icons.task_alt_rounded, size: 64, color: AppColors.textHint.withOpacity(0.3)),
                 const SizedBox(height: AppDimensions.md),
                 Text('Selecciona un proyecto para ver sus tareas', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint)),
               ]))
@@ -358,14 +358,14 @@ class _KanbanColumnState extends State<_KanbanColumn> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: _isDragOver ? Border.all(color: widget.status.color, width: 2.5) : null,
-            boxShadow: _isDragOver ? [BoxShadow(color: widget.status.color.withValues(alpha: 0.15), blurRadius: 12)] : null,
+            boxShadow: _isDragOver ? [BoxShadow(color: widget.status.color.withOpacity(0.15), blurRadius: 12)] : null,
           ),
           child: Column(children: [
             // Column header
             Container(
               padding: const EdgeInsets.all(AppDimensions.md),
               decoration: BoxDecoration(
-                color: _isDragOver ? widget.status.color.withValues(alpha: 0.2) : widget.status.color.withValues(alpha: 0.1),
+                color: _isDragOver ? widget.status.color.withOpacity(0.2) : widget.status.color.withOpacity(0.1),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(children: [
@@ -375,7 +375,7 @@ class _KanbanColumnState extends State<_KanbanColumn> {
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: widget.status.color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: widget.status.color.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
                   child: Text('${widget.tasks.length}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: widget.status.color)),
                 ),
               ]),
@@ -384,9 +384,9 @@ class _KanbanColumnState extends State<_KanbanColumn> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: _isDragOver ? widget.status.color.withValues(alpha: 0.05) : AppColors.surface,
+                  color: _isDragOver ? widget.status.color.withOpacity(0.05) : AppColors.surface,
                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                  border: Border.all(color: _isDragOver ? widget.status.color.withValues(alpha: 0.3) : AppColors.divider),
+                  border: Border.all(color: _isDragOver ? widget.status.color.withOpacity(0.3) : AppColors.divider),
                 ),
                 child: widget.tasks.isEmpty
                     ? Center(child: Padding(
@@ -453,7 +453,7 @@ class _DraggableKanbanCard extends StatelessWidget {
           Row(children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(color: task.priority.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
+              decoration: BoxDecoration(color: task.priority.color.withOpacity(0.1), borderRadius: BorderRadius.circular(3)),
               child: Text(task.priority.label, style: TextStyle(fontSize: 9, color: task.priority.color, fontWeight: FontWeight.w500)),
             ),
             if (task.fechaVencimiento != null) ...[

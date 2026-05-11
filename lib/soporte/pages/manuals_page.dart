@@ -8,12 +8,14 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/responsive.dart';
+import '../../core/role.dart';
 import '../models/knowledge_article.dart';
 import '../models/support_enums.dart';
 import '../services/knowledge_service.dart';
 
 class ManualsPage extends StatefulWidget {
-  const ManualsPage({super.key});
+  final UserRole? role;
+  const ManualsPage({super.key, this.role});
 
   @override
   State<ManualsPage> createState() => _ManualsPageState();
@@ -21,6 +23,13 @@ class ManualsPage extends StatefulWidget {
 
 class _ManualsPageState extends State<ManualsPage> {
   bool _uploading = false;
+
+  bool get _canUpload {
+    if (widget.role == null) return false;
+    return widget.role!.id == 'admin' ||
+           widget.role!.id == 'soporte_sistemas' ||
+           widget.role!.id == 'soporte_tecnico';
+  }
 
   Future<void> _uploadManual() async {
     final result = await FilePicker.platform.pickFiles(
@@ -162,13 +171,14 @@ class _ManualsPageState extends State<ManualsPage> {
               const SizedBox(width: AppDimensions.sm),
               Text('Manuales y Guías', style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.w600)),
               const Spacer(),
-              _uploading
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                  : FilledButton.icon(
-                      onPressed: _uploadManual,
-                      icon: const Icon(Icons.upload_file_rounded, size: 18),
-                      label: const Text('Subir Manual'),
-                    ),
+              if (_canUpload)
+                _uploading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    : FilledButton.icon(
+                        onPressed: _uploadManual,
+                        icon: const Icon(Icons.upload_file_rounded, size: 18),
+                        label: const Text('Subir Manual'),
+                      ),
             ],
           ),
         ),
@@ -188,7 +198,7 @@ class _ManualsPageState extends State<ManualsPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.folder_open_rounded, size: 64, color: AppColors.textHint.withValues(alpha: 0.3)),
+                      Icon(Icons.folder_open_rounded, size: 64, color: AppColors.textHint.withOpacity(0.3)),
                       const SizedBox(height: AppDimensions.md),
                       Text('Sin manuales', style: AppTextStyles.h4.copyWith(color: AppColors.textHint)),
                       const SizedBox(height: AppDimensions.sm),
@@ -243,7 +253,7 @@ class _ManualsPageState extends State<ManualsPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                  color: const Color(0xFF6366F1).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Row(mainAxisSize: MainAxisSize.min, children: [

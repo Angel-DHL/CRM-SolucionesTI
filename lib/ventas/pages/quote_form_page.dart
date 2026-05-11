@@ -358,13 +358,13 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
                         decoration: BoxDecoration(
                           color: AppColors.primarySurface,
                           borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
                         ),
                         child: Column(children: [
                           Row(children: [
                             Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                               child: Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
                             ),
                             const SizedBox(width: AppDimensions.md),
@@ -476,7 +476,7 @@ class _QuoteFormPageState extends State<QuoteFormPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [

@@ -207,7 +207,7 @@ class SaleOrder {
       clienteRazonSocial: d['clienteRazonSocial'],
       clienteEmpresa: d['clienteEmpresa'],
       items: (d['items'] as List<dynamic>?)
-          ?.map((i) => SaleOrderItem.fromMap(i as Map<String, dynamic>))
+          ?.map((i) => SaleOrderItem.fromMap(Map<String, dynamic>.from(i as Map)))
           .toList() ?? [],
       subtotal: (d['subtotal'] ?? 0).toDouble(),
       descuentoGlobal: (d['descuentoGlobal'] ?? 0).toDouble(),
@@ -218,7 +218,7 @@ class SaleOrder {
       totalPagado: (d['totalPagado'] ?? 0).toDouble(),
       moneda: d['moneda'] ?? 'MXN',
       pagos: (d['pagos'] as List<dynamic>?)
-          ?.map((p) => PaymentRecord.fromMap(p as Map<String, dynamic>))
+          ?.map((p) => PaymentRecord.fromMap(Map<String, dynamic>.from(p as Map)))
           .toList() ?? [],
       metodoPagoPrincipal: d['metodoPagoPrincipal'] != null
           ? PaymentMethodX.from(d['metodoPagoPrincipal'])

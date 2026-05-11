@@ -338,7 +338,7 @@ class Project {
       totalAdelantos: (d['totalAdelantos'] ?? 0).toDouble(),
       moneda: d['moneda'] ?? 'MXN',
       materiales: (d['materiales'] as List<dynamic>?)
-              ?.map((m) => ProjectMaterial.fromMap(m as Map<String, dynamic>))
+              ?.map((m) => ProjectMaterial.fromMap(Map<String, dynamic>.from(m as Map)))
               .toList() ??
           [],
       responsableId: d['responsableId'],

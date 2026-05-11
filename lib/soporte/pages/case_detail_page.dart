@@ -173,7 +173,7 @@ class _CaseDetailPageState extends State<CaseDetailPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: caso.status.color.withValues(alpha: 0.1),
+                  color: caso.status.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -186,7 +186,7 @@ class _CaseDetailPageState extends State<CaseDetailPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: caso.priority.color.withValues(alpha: 0.1),
+                  color: caso.priority.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -276,10 +276,10 @@ class _CaseDetailPageState extends State<CaseDetailPage> {
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
         color: caso.isResolved
-            ? AppColors.success.withValues(alpha: 0.03)
+            ? AppColors.success.withOpacity(0.03)
             : AppColors.surface,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: caso.isResolved ? AppColors.success.withValues(alpha: 0.3) : AppColors.divider),
+        border: Border.all(color: caso.isResolved ? AppColors.success.withOpacity(0.3) : AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,10 +327,10 @@ class _CaseDetailPageState extends State<CaseDetailPage> {
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFF6366F1).withValues(alpha: 0.05), const Color(0xFF8B5CF6).withValues(alpha: 0.05)],
+          colors: [const Color(0xFF6366F1).withOpacity(0.05), const Color(0xFF8B5CF6).withOpacity(0.05)],
         ),
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -473,7 +473,7 @@ class _CaseDetailPageState extends State<CaseDetailPage> {
                           children: [
                             CircleAvatar(
                               radius: 12,
-                              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                              backgroundColor: AppColors.primary.withOpacity(0.1),
                               child: Text(email.isNotEmpty ? email[0].toUpperCase() : '?',
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary)),
                             ),

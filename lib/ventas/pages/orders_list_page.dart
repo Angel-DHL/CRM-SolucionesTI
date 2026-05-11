@@ -51,7 +51,7 @@ class OrdersListPage extends StatelessWidget {
                 leading: Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(
-                    color: Color(o.status.colorValue).withValues(alpha: 0.1),
+                    color: Color(o.status.colorValue).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                   ),
                   child: Center(child: Text(o.status.emoji, style: const TextStyle(fontSize: 20))),
@@ -63,7 +63,7 @@ class OrdersListPage extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Color(o.paymentStatus.colorValue).withValues(alpha: 0.1),
+                        color: Color(o.paymentStatus.colorValue).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                       ),
                       child: Text(o.paymentStatus.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(o.paymentStatus.colorValue))),

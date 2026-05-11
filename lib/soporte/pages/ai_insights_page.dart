@@ -276,9 +276,9 @@ class _AiInsightsPageState extends State<AiInsightsPage> {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [const Color(0xFF6366F1).withValues(alpha: 0.08), const Color(0xFF8B5CF6).withValues(alpha: 0.08)]),
+        gradient: LinearGradient(colors: [const Color(0xFF6366F1).withOpacity(0.08), const Color(0xFF8B5CF6).withOpacity(0.08)]),
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
       ),
       child: Row(children: [
         Container(
@@ -342,7 +342,7 @@ class _AiInsightsPageState extends State<AiInsightsPage> {
           ..._patterns.map((p) => Container(
             margin: const EdgeInsets.only(bottom: AppDimensions.sm),
             padding: const EdgeInsets.all(AppDimensions.md),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(AppDimensions.radiusMd), border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2))),
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(AppDimensions.radiusMd), border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2))),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFF6366F1)),
@@ -461,7 +461,7 @@ class _AiInsightsPageState extends State<AiInsightsPage> {
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: const Color(0xFF6366F1).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusSm)),
+            decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusSm)),
             child: const Text('Auto-generados', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
           ),
         ]),
@@ -474,7 +474,7 @@ class _AiInsightsPageState extends State<AiInsightsPage> {
               return Padding(
                 padding: const EdgeInsets.all(AppDimensions.lg),
                 child: Center(child: Column(children: [
-                  Icon(Icons.auto_awesome_rounded, size: 40, color: AppColors.textHint.withValues(alpha: 0.3)),
+                  Icon(Icons.auto_awesome_rounded, size: 40, color: AppColors.textHint.withOpacity(0.3)),
                   const SizedBox(height: AppDimensions.sm),
                   Text('Sin artículos generados por IA aún', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint)),
                 ])),
@@ -487,7 +487,7 @@ class _AiInsightsPageState extends State<AiInsightsPage> {
               child: Row(children: [
                 Container(
                   padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(color: const Color(0xFF6366F1).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusSm)),
+                  decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusSm)),
                   child: const Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF6366F1)),
                 ),
                 const SizedBox(width: AppDimensions.sm),

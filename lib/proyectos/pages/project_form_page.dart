@@ -402,7 +402,7 @@ class _ProjectFormPageState extends State<ProjectFormPage> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.person_off_rounded, size: 48, color: AppColors.textHint.withValues(alpha: 0.3)),
+                                  Icon(Icons.person_off_rounded, size: 48, color: AppColors.textHint.withOpacity(0.3)),
                                   const SizedBox(height: AppDimensions.md),
                                   Text(
                                     searchQuery.isEmpty 

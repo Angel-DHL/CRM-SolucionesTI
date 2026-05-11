@@ -133,7 +133,7 @@ class SupportDashboardPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: data.color.withValues(alpha: 0.1),
+              color: data.color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
             ),
             child: Icon(data.icon, size: 18, color: data.color),
@@ -296,7 +296,7 @@ class SupportDashboardPage extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: c.priority.color.withValues(alpha: 0.1),
+            color: c.priority.color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(c.priority.label, style: TextStyle(fontSize: 10, color: c.priority.color, fontWeight: FontWeight.w600)),

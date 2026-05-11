@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/firebase_helper.dart';
 import '../models/project.dart';
@@ -216,21 +217,33 @@ class ProjectService {
     }
 
     return query.snapshots().map((snap) {
-      var projects = snap.docs.map(Project.fromDoc).toList();
+      try {
+        var projects = snap.docs.map((doc) {
+          try {
+            return Project.fromDoc(doc);
+          } catch (e) {
+            debugPrint('Error parsing project ${doc.id}: $e');
+            return null;
+          }
+        }).whereType<Project>().toList();
 
-      // Filtrado en memoria para búsqueda de texto
-      if (filters?.searchQuery != null && filters!.searchQuery!.isNotEmpty) {
-        final q = filters.searchQuery!.toLowerCase();
-        projects = projects.where((p) =>
-            p.nombre.toLowerCase().contains(q) ||
-            p.folio.toLowerCase().contains(q) ||
-            p.clienteNombre.toLowerCase().contains(q) ||
-            (p.clienteEmpresa?.toLowerCase().contains(q) ?? false) ||
-            p.descripcion.toLowerCase().contains(q)
-        ).toList();
+        // Filtrado en memoria para búsqueda de texto
+        if (filters?.searchQuery != null && filters!.searchQuery!.isNotEmpty) {
+          final q = filters.searchQuery!.toLowerCase();
+          projects = projects.where((p) =>
+              p.nombre.toLowerCase().contains(q) ||
+              p.folio.toLowerCase().contains(q) ||
+              p.clienteNombre.toLowerCase().contains(q) ||
+              (p.clienteEmpresa?.toLowerCase().contains(q) ?? false) ||
+              p.descripcion.toLowerCase().contains(q)
+          ).toList();
+        }
+
+        return projects;
+      } catch (e) {
+        debugPrint('Error in streamProjects: $e');
+        return <Project>[];
       }
-
-      return projects;
     });
   }
 
@@ -468,9 +481,9 @@ class ProjectService {
       pausadosCount: projects.where((p) => p.status == ProjectStatus.pausado).length,
       planificacionCount: projects.where((p) => p.status == ProjectStatus.planificacion).length,
       canceladosCount: projects.where((p) => p.status == ProjectStatus.cancelado).length,
-      valorTotalProyectos: projects.fold(0, (s, p) => s + p.valorProyecto),
-      totalIngresos: projects.fold(0, (s, p) => s + p.totalIngresos),
-      totalEgresos: projects.fold(0, (s, p) => s + p.totalEgresos),
+      valorTotalProyectos: projects.fold(0.0, (s, p) => s + p.valorProyecto),
+      totalIngresos: projects.fold(0.0, (s, p) => s + p.totalIngresos),
+      totalEgresos: projects.fold(0.0, (s, p) => s + p.totalEgresos),
       rentabilidadPromedio: projects.isNotEmpty
           ? projects.fold(0.0, (s, p) => s + p.margenRentabilidad) / projects.length
           : 0,
@@ -480,22 +493,33 @@ class ProjectService {
 
   Stream<ProjectStats> streamStats() {
     return _col.snapshots().map((snap) {
-      final projects = snap.docs.map(Project.fromDoc).toList();
-      return ProjectStats(
-        totalProjects: projects.length,
-        activosCount: projects.where((p) => p.status == ProjectStatus.enProgreso).length,
-        completadosCount: projects.where((p) => p.status == ProjectStatus.completado).length,
-        pausadosCount: projects.where((p) => p.status == ProjectStatus.pausado).length,
-        planificacionCount: projects.where((p) => p.status == ProjectStatus.planificacion).length,
-        canceladosCount: projects.where((p) => p.status == ProjectStatus.cancelado).length,
-        valorTotalProyectos: projects.fold(0, (sum, p) => sum + p.valorProyecto),
-        totalIngresos: projects.fold(0, (sum, p) => sum + p.totalIngresos),
-        totalEgresos: projects.fold(0, (sum, p) => sum + p.totalEgresos),
-        rentabilidadPromedio: projects.isNotEmpty
-            ? projects.fold(0.0, (sum, p) => sum + p.margenRentabilidad) / projects.length
-            : 0,
-        proyectosAtrasados: projects.where((p) => p.estaAtrasado).length,
-      );
+      try {
+        final projects = snap.docs.map((doc) {
+          try {
+            return Project.fromDoc(doc);
+          } catch (e) {
+            return null;
+          }
+        }).whereType<Project>().toList();
+        return ProjectStats(
+          totalProjects: projects.length,
+          activosCount: projects.where((p) => p.status == ProjectStatus.enProgreso).length,
+          completadosCount: projects.where((p) => p.status == ProjectStatus.completado).length,
+          pausadosCount: projects.where((p) => p.status == ProjectStatus.pausado).length,
+          planificacionCount: projects.where((p) => p.status == ProjectStatus.planificacion).length,
+          canceladosCount: projects.where((p) => p.status == ProjectStatus.cancelado).length,
+          valorTotalProyectos: projects.fold(0.0, (sum, p) => sum + p.valorProyecto),
+          totalIngresos: projects.fold(0.0, (sum, p) => sum + p.totalIngresos),
+          totalEgresos: projects.fold(0.0, (sum, p) => sum + p.totalEgresos),
+          rentabilidadPromedio: projects.isNotEmpty
+              ? projects.fold(0.0, (sum, p) => sum + p.margenRentabilidad) / projects.length
+              : 0,
+          proyectosAtrasados: projects.where((p) => p.estaAtrasado).length,
+        );
+      } catch (e) {
+        debugPrint('Error in streamStats: $e');
+        return const ProjectStats();
+      }
     });
   }
 

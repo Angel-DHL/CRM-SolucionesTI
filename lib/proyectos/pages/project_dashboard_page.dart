@@ -135,7 +135,7 @@ class ProjectDashboardPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: data.color.withValues(alpha: 0.1),
+                color: data.color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
               ),
               child: Icon(data.icon, size: 18, color: data.color),
