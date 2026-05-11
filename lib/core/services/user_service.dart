@@ -16,14 +16,76 @@ class UserService {
     'https://$_region-$_projectId.cloudfunctions.net/$_functionName',
   );
 
-  /// Obtiene todos los usuarios
+  /// Stream de todos los usuarios
   static Stream<List<Map<String, dynamic>>> get usersStream {
-    return _usersCol.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => doc.data()).toList();
+    return _usersCol.orderBy('firstName').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => {'uid': doc.id, ...doc.data()}).toList();
     });
   }
 
-  /// Actualiza el rol de un usuario tanto en Firestore como en Auth (via Cloud Function)
+  /// Obtener un usuario por UID
+  static Future<Map<String, dynamic>?> getUserById(String uid) async {
+    final doc = await _usersCol.doc(uid).get();
+    if (!doc.exists) return null;
+    return {'uid': doc.id, ...doc.data()!};
+  }
+
+  /// Buscar usuarios por nombre o email
+  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    final snapshot = await _usersCol.get();
+    final q = query.toLowerCase();
+    return snapshot.docs
+        .map((doc) => {'uid': doc.id, ...doc.data()})
+        .where((u) {
+          final name = '${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'.toLowerCase();
+          final email = (u['email'] ?? '').toString().toLowerCase();
+          return name.contains(q) || email.contains(q);
+        })
+        .toList();
+  }
+
+  /// Obtener estadísticas de usuarios
+  static Future<Map<String, int>> getUserStats() async {
+    final snapshot = await _usersCol.get();
+    final docs = snapshot.docs.map((d) => d.data()).toList();
+    final total = docs.length;
+    final active = docs.where((d) => d['active'] != false).length;
+    final inactive = total - active;
+
+    // Conteo por rol
+    final roleCount = <String, int>{};
+    for (final d in docs) {
+      final role = (d['role'] ?? 'soporte_tecnico').toString();
+      roleCount[role] = (roleCount[role] ?? 0) + 1;
+    }
+
+    return {
+      'total': total,
+      'active': active,
+      'inactive': inactive,
+      ...roleCount,
+    };
+  }
+
+  /// Obtener usuarios por rol
+  static Future<List<Map<String, dynamic>>> getUsersByRole(String roleId) async {
+    final snapshot = await _usersCol.where('role', isEqualTo: roleId).get();
+    return snapshot.docs.map((doc) => {'uid': doc.id, ...doc.data()}).toList();
+  }
+
+  /// Conteo de usuarios por rol
+  static Future<int> countUsersByRole(String roleId) async {
+    final snapshot = await _usersCol.where('role', isEqualTo: roleId).get();
+    return snapshot.docs.length;
+  }
+
+  /// Actualizar perfil de un usuario (admin)
+  static Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    await _usersCol.doc(uid).update(data);
+  }
+
+  /// Actualiza el rol de un usuario
   static Future<void> updateRole(String uid, String newRole) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
