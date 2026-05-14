@@ -110,7 +110,7 @@ class UserService {
         throw Exception(errorData['error'] ?? 'Error HTTP ${resp.statusCode}');
       }
     } catch (e) {
-      print('Error al actualizar rol: $e');
+      debugPrint('Error al actualizar rol: $e');
       rethrow;
     }
   }

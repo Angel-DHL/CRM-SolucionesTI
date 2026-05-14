@@ -140,7 +140,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       constraints: BoxConstraints(maxWidth: isMobile ? double.infinity : 480),
       child: Card(
         elevation: isDesktop ? 8 : 0,
-        shadowColor: AppColors.primaryDark.withOpacity(0.3),
+        shadowColor: AppColors.primaryDark.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(
             isMobile ? AppDimensions.radiusLg : AppDimensions.radiusXl,
@@ -189,7 +189,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -494,7 +494,7 @@ class _ErrorBannerState extends State<_ErrorBanner>
               Container(
                 padding: const EdgeInsets.all(AppDimensions.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

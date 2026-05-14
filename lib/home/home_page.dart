@@ -840,15 +840,12 @@ class _Header extends StatelessWidget {
   final User? user;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onRefresh;
-  // ignore: unused_element_parameter
-  final VoidCallback? onCreateUser;
 
   const _Header({
     required this.role,
     required this.user,
     required this.onSearchChanged,
     required this.onRefresh,
-    this.onCreateUser,
   });
 
   @override

@@ -99,18 +99,14 @@ class CollaboratorWorkloadChart extends StatelessWidget {
 class _CollaboratorData {
   final String name;
   final String email;
-  int totalActivities;
-  int completedActivities;
-  int inProgressActivities;
-  int overdueActivities;
+  int totalActivities = 0;
+  int completedActivities = 0;
+  int inProgressActivities = 0;
+  int overdueActivities = 0;
 
   _CollaboratorData({
     required this.name,
     required this.email,
-    this.totalActivities = 0,
-    this.completedActivities = 0,
-    this.inProgressActivities = 0,
-    this.overdueActivities = 0,
   });
 
   double get completionRate =>
@@ -171,10 +167,10 @@ class _CollaboratorBar extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: data.completionRate >= 0.8
-                      ? AppColors.success.withOpacity(0.1)
+                      ? AppColors.success.withValues(alpha: 0.1)
                       : data.completionRate >= 0.5
-                      ? AppColors.warning.withOpacity(0.1)
-                      : AppColors.error.withOpacity(0.1),
+                      ? AppColors.warning.withValues(alpha: 0.1)
+                      : AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                 ),
                 child: Text(
@@ -202,9 +198,6 @@ class _CollaboratorBar extends StatelessWidget {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final available = constraints.maxWidth;
-                  final totalWidth = maxValue > 0
-                      ? available * (data.totalActivities / maxValue)
-                      : 0.0;
 
                   return Stack(
                     children: [

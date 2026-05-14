@@ -161,7 +161,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return ListView.separated(
           padding: const EdgeInsets.all(AppDimensions.md),
           itemCount: users.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) => _UserCard(
             user: users[index],
             onRefresh: _loadStats,
@@ -194,7 +194,7 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(AppDimensions.radiusFull)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppDimensions.radiusFull)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 8),
@@ -229,8 +229,8 @@ class _UserCard extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg), side: BorderSide(color: active ? AppColors.divider : AppColors.error.withOpacity(0.3))),
-      color: active ? AppColors.surface : AppColors.error.withOpacity(0.03),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg), side: BorderSide(color: active ? AppColors.divider : AppColors.error.withValues(alpha: 0.3))),
+      color: active ? AppColors.surface : AppColors.error.withValues(alpha: 0.03),
       child: ExpansionTile(
         leading: CircleAvatar(
           radius: 24,
@@ -242,7 +242,7 @@ class _UserCard extends StatelessWidget {
           Expanded(child: Text(displayName, style: AppTextStyles.labelLarge)),
           if (!active) Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusFull)),
+            decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusFull)),
             child: Text('INACTIVO', style: AppTextStyles.labelSmall.copyWith(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.w700)),
           ),
         ]),
@@ -263,21 +263,21 @@ class _UserCard extends StatelessWidget {
           const SizedBox(height: 16),
           // Actions
           Row(children: [
-            Switch(value: active, onChanged: (v) { UserService.toggleUserStatus(uid, v); onRefresh(); }, activeColor: AppColors.success),
+            Switch(value: active, onChanged: (v) { UserService.toggleUserStatus(uid, v); onRefresh(); }, activeTrackColor: AppColors.success),
             Text(active ? 'Activo' : 'Inactivo', style: AppTextStyles.labelSmall),
             const Spacer(),
             OutlinedButton.icon(
               onPressed: () => _showRolePicker(context, uid, roleId),
               icon: const Icon(Icons.badge_rounded, size: 16),
               label: const Text('Cambiar Rol'),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: BorderSide(color: AppColors.primary.withOpacity(0.3))),
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3))),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: () => _confirmDelete(context, uid, displayName),
               icon: const Icon(Icons.delete_outline_rounded, size: 16),
               label: const Text('Eliminar'),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: BorderSide(color: AppColors.error.withOpacity(0.3))),
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: BorderSide(color: AppColors.error.withValues(alpha: 0.3))),
             ),
           ]),
         ],

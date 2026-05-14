@@ -1,6 +1,5 @@
 // lib/operatividad/widgets/notifications_panel.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -68,7 +67,7 @@ class NotificationsPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -205,7 +204,7 @@ class NotificationsPanel extends StatelessWidget {
           Icon(
             Icons.notifications_off_rounded,
             size: 48,
-            color: AppColors.textHint.withOpacity(0.5),
+            color: AppColors.textHint.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppDimensions.md),
           Text(
@@ -216,7 +215,7 @@ class NotificationsPanel extends StatelessWidget {
           Text(
             'Aquí aparecerán tus alertas',
             style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textHint.withOpacity(0.7),
+              color: AppColors.textHint.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -249,7 +248,7 @@ class _NotificationItem extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: AppDimensions.lg),
-        color: AppColors.error.withOpacity(0.1),
+        color: AppColors.error.withValues(alpha: 0.1),
         child: Icon(Icons.delete_rounded, color: AppColors.error),
       ),
       child: InkWell(
@@ -262,7 +261,7 @@ class _NotificationItem extends StatelessWidget {
           decoration: BoxDecoration(
             color: notification.isRead
                 ? Colors.transparent
-                : color.withOpacity(0.05),
+                : color.withValues(alpha: 0.05),
             border: Border(
               left: notification.isRead
                   ? BorderSide.none
@@ -276,7 +275,7 @@ class _NotificationItem extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppDimensions.sm),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
                 ),
                 child: Icon(icon, color: color, size: 18),

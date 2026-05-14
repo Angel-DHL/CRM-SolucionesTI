@@ -125,7 +125,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
                 return ListView.separated(
                   padding: const EdgeInsets.all(AppDimensions.sm),
                   itemCount: roles.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  separatorBuilder: (_, _) => const SizedBox(height: 4),
                   itemBuilder: (context, index) {
                     final role = roles[index];
                     final isEditing = _editingRole?.id == role.id;
@@ -238,8 +238,8 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
               final level = _currentPermissions[module.id] ?? PermissionLevel.none;
               return Card(elevation: 0, margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                  side: BorderSide(color: level == PermissionLevel.none ? AppColors.divider : _permColor(level).withOpacity(0.3))),
-                color: level == PermissionLevel.none ? null : _permColor(level).withOpacity(0.03),
+                  side: BorderSide(color: level == PermissionLevel.none ? AppColors.divider : _permColor(level).withValues(alpha: 0.3))),
+                color: level == PermissionLevel.none ? null : _permColor(level).withValues(alpha: 0.03),
                 child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(children: [
                     Icon(_moduleIcon(module), size: 20, color: level == PermissionLevel.none ? AppColors.textHint : _permColor(level)),
@@ -299,6 +299,8 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       ));
       return;
     }
+
+    if (!mounted) return;
 
     final confirm = await showDialog<bool>(
       context: context,

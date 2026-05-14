@@ -551,7 +551,7 @@ class _CreateUserPageState extends State<CreateUserPage>
                   vertical: AppDimensions.xs / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: _passwordStrengthColor.withOpacity(0.1),
+                  color: _passwordStrengthColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                 ),
                 child: Text(
@@ -767,12 +767,12 @@ class _CreateUserPageState extends State<CreateUserPage>
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.primary.withOpacity(0.6),
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
           ),
           elevation: _loading ? 0 : 2,
-          shadowColor: AppColors.primary.withOpacity(0.4),
+          shadowColor: AppColors.primary.withValues(alpha: 0.4),
         ),
         child: _loading
             ? Row(
@@ -784,7 +784,7 @@ class _CreateUserPageState extends State<CreateUserPage>
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.white.withOpacity(0.9),
+                        Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ),
@@ -792,7 +792,7 @@ class _CreateUserPageState extends State<CreateUserPage>
                   Text(
                     'Creando usuario...',
                     style: AppTextStyles.button.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
                 ],
@@ -875,12 +875,12 @@ class _CreateUserPageState extends State<CreateUserPage>
                       vertical: AppDimensions.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: _getRoleColor(_role ?? UserRole.soporteTecnico).withOpacity(0.1),
+                      color: _getRoleColor(_role ?? UserRole.soporteTecnico).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(
                         AppDimensions.radiusFull,
                       ),
                       border: Border.all(
-                        color: _getRoleColor(_role ?? UserRole.soporteTecnico).withOpacity(0.3),
+                        color: _getRoleColor(_role ?? UserRole.soporteTecnico).withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -918,7 +918,7 @@ class _CreateUserPageState extends State<CreateUserPage>
       color: AppColors.infoLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        side: BorderSide(color: AppColors.info.withOpacity(0.2), width: 1),
+        side: BorderSide(color: AppColors.info.withValues(alpha: 0.2), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppDimensions.lg),
@@ -930,7 +930,7 @@ class _CreateUserPageState extends State<CreateUserPage>
                 Container(
                   padding: const EdgeInsets.all(AppDimensions.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
                   ),
                   child: Icon(
@@ -1138,7 +1138,7 @@ class _AnimatedBannerState extends State<_AnimatedBanner>
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           children: [
@@ -1189,7 +1189,7 @@ class _SuccessCard extends StatelessWidget {
       color: AppColors.successLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        side: BorderSide(color: AppColors.success.withOpacity(0.3), width: 1),
+        side: BorderSide(color: AppColors.success.withValues(alpha: 0.3), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppDimensions.lg),
@@ -1207,7 +1207,7 @@ class _SuccessCard extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -1236,7 +1236,7 @@ class _SuccessCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [

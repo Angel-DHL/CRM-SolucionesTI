@@ -1,6 +1,5 @@
 // lib/operatividad/services/metrics_service.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/oper_activity.dart';
 
@@ -379,7 +378,7 @@ class MetricsService {
           : 0.0;
 
       final avgProgress = total > 0
-          ? monthActivities.fold<int>(0, (sum, a) => sum + a.progress) / total
+          ? monthActivities.fold<int>(0, (acc, a) => acc + a.progress) / total
           : 0.0;
 
       double totalHours = 0;

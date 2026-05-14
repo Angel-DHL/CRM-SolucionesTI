@@ -120,11 +120,16 @@ class _ProjectFormPageState extends State<ProjectFormPage> {
         child: Stepper(
           currentStep: _currentStep,
           onStepContinue: () {
-            if (_currentStep < 3) setState(() => _currentStep++);
-            else _save();
+            if (_currentStep < 3) {
+              setState(() => _currentStep++);
+            } else {
+              _save();
+            }
           },
           onStepCancel: () {
-            if (_currentStep > 0) setState(() => _currentStep--);
+            if (_currentStep > 0) {
+              setState(() => _currentStep--);
+            }
           },
           controlsBuilder: (ctx, details) => Padding(
             padding: const EdgeInsets.only(top: AppDimensions.md),

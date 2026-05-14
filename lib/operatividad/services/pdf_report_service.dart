@@ -73,20 +73,20 @@ class ReportConfig {
 
 class PdfReportService {
   // Colores del tema convertidos a PdfColor
-  static final _primaryColor = PdfColor.fromInt(AppColors.primary.value);
-  static final _primaryDark = PdfColor.fromInt(AppColors.primaryDark.value);
+  static final _primaryColor = PdfColor.fromInt(AppColors.primary.toARGB32());
+  static final _primaryDark = PdfColor.fromInt(AppColors.primaryDark.toARGB32());
   // ignore: unused_field
-  static final _primaryLight = PdfColor.fromInt(AppColors.primaryLight.value);
-  static final _successColor = PdfColor.fromInt(AppColors.success.value);
-  static final _warningColor = PdfColor.fromInt(AppColors.warning.value);
-  static final _errorColor = PdfColor.fromInt(AppColors.error.value);
-  static final _infoColor = PdfColor.fromInt(AppColors.info.value);
-  static final _textPrimary = PdfColor.fromInt(AppColors.textPrimary.value);
-  static final _textSecondary = PdfColor.fromInt(AppColors.textSecondary.value);
-  static final _textHint = PdfColor.fromInt(AppColors.textHint.value);
-  static final _divider = PdfColor.fromInt(AppColors.divider.value);
+  static final _primaryLight = PdfColor.fromInt(AppColors.primaryLight.toARGB32());
+  static final _successColor = PdfColor.fromInt(AppColors.success.toARGB32());
+  static final _warningColor = PdfColor.fromInt(AppColors.warning.toARGB32());
+  static final _errorColor = PdfColor.fromInt(AppColors.error.toARGB32());
+  static final _infoColor = PdfColor.fromInt(AppColors.info.toARGB32());
+  static final _textPrimary = PdfColor.fromInt(AppColors.textPrimary.toARGB32());
+  static final _textSecondary = PdfColor.fromInt(AppColors.textSecondary.toARGB32());
+  static final _textHint = PdfColor.fromInt(AppColors.textHint.toARGB32());
+  static final _divider = PdfColor.fromInt(AppColors.divider.toARGB32());
   // ignore: unused_field
-  static final _background = PdfColor.fromInt(AppColors.background.value);
+  static final _background = PdfColor.fromInt(AppColors.background.toARGB32());
   // ignore: unused_field
   static final _surface = PdfColors.white;
 
@@ -1133,19 +1133,14 @@ class _ReportStats {
 class _CollabStats {
   final String name;
   final String email;
-  int totalActivities;
-  int completedActivities;
-  int overdueActivities;
-  double totalEstimatedHours;
-  double totalActualHours;
+  int totalActivities = 0;
+  int completedActivities = 0;
+  int overdueActivities = 0;
+  double totalEstimatedHours = 0;
+  double totalActualHours = 0;
 
   _CollabStats({
     required this.name,
     required this.email,
-    this.totalActivities = 0,
-    this.completedActivities = 0,
-    this.overdueActivities = 0,
-    this.totalEstimatedHours = 0,
-    this.totalActualHours = 0,
   });
 }
